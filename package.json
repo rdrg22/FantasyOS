@@ -1,0 +1,36 @@
+{
+  "name": "fantasy-os",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Fantasy OS — asistente de decisiones para LaLiga Fantasy",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "tsc --noEmit",
+    "test": "vitest run",
+    "sync": "tsx --no-warnings scripts/sync.ts"
+  },
+  "engines": {
+    "node": ">=22.13"
+  },
+  "dependencies": {
+    "lucide-react": "^1.59.0",
+    "next": "^16.4.2",
+    "node-html-parser": "^9.0.5",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "recharts": "^3.10.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "^24.19.2",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "tailwindcss": "^4.3.3",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.5"
+  }
+}
