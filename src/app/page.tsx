@@ -14,7 +14,7 @@ import { SyncButton } from "@/components/SyncButton";
 
 export default async function Dashboard() {
   const { repo, workspace } = await getRepo();
-  const s = buildState(repo, workspace);
+  const s = await buildState(repo, workspace);
   const today = s.recommendations.filter((r) => r.action !== "MANTENER");
   const top3 = topDecisions(s.recommendations, 3);
   const rest = today.slice(3, 9);

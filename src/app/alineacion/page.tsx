@@ -10,7 +10,7 @@ import { POSITION_LABEL, type Position } from "@/lib/domain/types";
 
 export default async function AlineacionPage() {
   const { repo, workspace } = await getRepo();
-  const s = buildState(repo, workspace);
+  const s = await buildState(repo, workspace);
   const rec = s.lineupRec;
   const cmp = s.lineupCmp;
   const A = (id: string | null) => (id ? s.analyses.get(id) : undefined);

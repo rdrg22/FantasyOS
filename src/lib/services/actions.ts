@@ -1,6 +1,6 @@
 import { z } from "zod";
-import type { Repo } from "../db/repo";
-import { DomainError, today } from "../db/repo";
+import type { Store } from "../db/common";
+import { DomainError, today } from "../db/common";
 import { FORMATIONS, POSITIONS } from "../domain/types";
 import { parseCsv, pick } from "../domain/csv";
 import { parseMoney, parsePosition, parseStatus, normalizeName } from "../domain/normalize";
@@ -8,7 +8,7 @@ import { resolveTeamId, TEAMS } from "../domain/teams";
 import { remapLineup } from "../domain/formations";
 import { buildState } from "./state";
 import { seedDemo } from "./demo";
-import { matchPlayer, syncAll, syncFixtures, syncLineups, syncMarket } from "./sync";
+import { matchPlayer, syncStep } from "./sync";
 import type { Workspace } from "../domain/types";
 
 // ───────── Esquemas de validación ─────────
@@ -43,7 +43,7 @@ export const ActionSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("upsertLineupEntry"), id: z.number().int().optional(), matchday: z.number().int().min(1).max(38), teamId, playerName: z.string().trim().min(2).max(60), playerId: z.string().nullable().optional(), role: z.enum(["titular", "suplente", "duda", "lesionado", "sancionado"]), probability: prob.optional() }),
   z.object({ type: z.literal("deleteLineupEntry"), id: z.number().int() }),
   z.object({ type: z.literal("resetDemo") }),
-  z.object({ type: z.literal("sync"), kind: z.enum(["market", "fixtures", "lineups", "all"]), force: z.boolean().default(false) }),
+  z.object({ type: z.literal("sync"), kind: z.enum(["fixtures", "market", "points", "lineups"]), force: z.boolean().default(false), exclude: z.array(z.string().max(80)).max(20).default([]) }),
 ]);
 
 export type Action = z.infer<typeof ActionSchema>;
@@ -52,130 +52,128 @@ export function formatZodError(e: z.ZodError): string {
   return e.issues.map((i) => (i.path.length ? `${i.path.join(".")}: ${i.message}` : i.message)).join(" · ");
 }
 
-export async function runAction(repo: Repo, workspace: Workspace, a: Action): Promise<{ message: string; data?: unknown }> {
+export async function runAction(repo: Store, workspace: Workspace, a: Action): Promise<{ message: string; data?: unknown }> {
   switch (a.type) {
     case "createPlayer": {
-      const p = repo.createManualPlayer({ name: a.name, teamId: a.teamId, position: a.position as never, value: a.value, status: a.status, startProb: a.startProb ?? null });
+      const p = await repo.createManualPlayer({ name: a.name, teamId: a.teamId, position: a.position as never, value: a.value, status: a.status, startProb: a.startProb ?? null });
       return { message: `Jugador ${p.name} creado.`, data: { id: p.id } };
     }
     case "updatePlayer": {
       const { type: _t, playerId: id, ...patch } = a;
-      repo.setOverride(id, patch as never);
+      await repo.setOverride(id, patch as never);
       return { message: "Datos del jugador actualizados (edición manual)." };
     }
     case "resetPlayer":
-      repo.clearOverride(a.playerId);
+      await repo.clearOverride(a.playerId);
       return { message: "Se han restaurado los datos de la fuente." };
     case "addToSquad":
-      repo.addToSquad({ playerId: a.playerId, purchasePrice: a.purchasePrice, purchaseDate: a.purchaseDate, notes: a.notes ?? null });
+      await repo.addToSquad({ playerId: a.playerId, purchasePrice: a.purchasePrice, purchaseDate: a.purchaseDate, notes: a.notes ?? null });
       return { message: "Jugador añadido a tu plantilla (sin mover presupuesto)." };
     case "updateSquad":
-      repo.updateSquadEntry(a.playerId, { purchasePrice: a.purchasePrice, purchaseDate: a.purchaseDate, notes: a.notes });
+      await repo.updateSquadEntry(a.playerId, { purchasePrice: a.purchasePrice, purchaseDate: a.purchaseDate, notes: a.notes });
       return { message: "Datos de compra actualizados." };
     case "removeFromSquad":
-      repo.removeFromSquad(a.playerId);
+      await repo.removeFromSquad(a.playerId);
       return { message: "Jugador quitado de la plantilla (sin registrar venta)." };
     case "buy": {
-      const r = repo.buy(a);
+      const r = await repo.buy(a);
       return { message: `Compra registrada. Saldo: ${r.budget.toLocaleString("es-ES")} €.`, data: r };
     }
     case "sell": {
-      const r = repo.sell(a);
+      const r = await repo.sell(a);
       return { message: `Venta registrada (${r.profit >= 0 ? "+" : ""}${r.profit.toLocaleString("es-ES")} € frente a la compra). Saldo: ${r.budget.toLocaleString("es-ES")} €.`, data: r };
     }
     case "setBudget": {
-      const r = repo.setBudget(a.budget, today(), a.notes);
+      const r = await repo.setBudget(a.budget, today(), a.notes);
       return { message: `Presupuesto fijado en ${r.budget.toLocaleString("es-ES")} €.`, data: r };
     }
     case "deleteTransaction":
-      repo.deleteTransaction(a.id);
+      await repo.deleteTransaction(a.id);
       return { message: "Operación eliminada del historial (el saldo no se modifica)." };
     case "saveLineup":
-      repo.saveLineup(a.formation as never, a.useCoach, a.lineup);
+      await repo.saveLineup(a.formation as never, a.useCoach, a.lineup);
       return { message: "Alineación guardada." };
     case "changeFormation": {
-      const s = repo.getSettings();
+      const s = await repo.getSettings();
       const lineup = remapLineup(s.lineup, a.formation as never, a.useCoach);
-      repo.saveSettings({ formation: a.formation as never, useCoach: a.useCoach, lineup });
+      await repo.saveSettings({ formation: a.formation as never, useCoach: a.useCoach, lineup });
       return { message: `Formación cambiada a ${a.formation}.` };
     }
     case "applyRecommendedLineup": {
-      const st = buildState(repo, workspace);
+      const st = await buildState(repo, workspace);
       const lineup = Object.fromEntries(st.lineupRec.slots.map((s) => [s.slot, s.playerId]));
-      repo.saveLineup(st.lineupRec.formation, st.settings.useCoach, lineup);
+      await repo.saveLineup(st.lineupRec.formation, st.settings.useCoach, lineup);
       return { message: `Aplicado el once recomendado (${st.lineupRec.formation}).` };
     }
     case "saveSettings":
-      if (a.maxSquadSize != null && a.maxSquadSize < repo.getSquad().length) throw new DomainError("El máximo no puede ser menor que tu plantilla actual.");
-      repo.saveSettings({ teamName: a.teamName, maxSquadSize: a.maxSquadSize });
+      if (a.maxSquadSize != null && a.maxSquadSize < (await repo.getSquad()).length) throw new DomainError("El máximo no puede ser menor que tu plantilla actual.");
+      await repo.saveSettings({ teamName: a.teamName, maxSquadSize: a.maxSquadSize });
       return { message: "Ajustes guardados." };
     case "addListing":
-      repo.addListing({ date: a.date ?? today(), playerId: a.playerId, askingPrice: a.askingPrice ?? null, seller: a.seller ?? null });
+      await repo.addListing({ date: a.date ?? today(), playerId: a.playerId, askingPrice: a.askingPrice ?? null, seller: a.seller ?? null });
       return { message: "Jugador añadido al mercado del día." };
     case "removeListing":
-      repo.removeListing(a.id);
+      await repo.removeListing(a.id);
       return { message: "Jugador quitado del mercado del día." };
     case "clearListings":
-      repo.clearListings(a.date);
+      await repo.clearListings(a.date);
       return { message: "Mercado del día vaciado." };
     case "importListingsCsv":
       return importListings(repo, a.csv, a.date ?? today(), a.createMissing);
     case "upsertLineupEntry":
-      repo.upsertManualLineupEntry({ id: a.id, matchday: a.matchday, teamId: a.teamId, playerName: a.playerName, playerId: a.playerId ?? null, role: a.role, probability: a.probability ?? null });
+      await repo.upsertManualLineupEntry({ id: a.id, matchday: a.matchday, teamId: a.teamId, playerName: a.playerName, playerId: a.playerId ?? null, role: a.role, probability: a.probability ?? null });
       if (a.playerId) {
         const st = a.role === "lesionado" ? "lesionado" : a.role === "sancionado" ? "sancionado" : a.role === "duda" ? "duda" : "disponible";
-        repo.updateAvailability([{ id: a.playerId, status: st, startProb: a.probability ?? null, note: "Editado manualmente" }]);
+        await repo.updateAvailability([{ id: a.playerId, status: st, startProb: a.probability ?? null, note: "Editado manualmente" }]);
       }
       return { message: "Alineación probable actualizada (edición manual)." };
     case "deleteLineupEntry":
-      repo.deleteLineupEntry(a.id);
+      await repo.deleteLineupEntry(a.id);
       return { message: "Entrada eliminada." };
     case "resetDemo": {
       if (workspace !== "demo") throw new DomainError("Solo se puede regenerar el espacio de demostración.");
-      const r = seedDemo(repo);
+      const r = await seedDemo(repo);
       return { message: `Datos de demostración regenerados (${r.players} jugadores ficticios).` };
     }
     case "sync": {
       if (workspace === "demo") throw new DomainError("Estás en modo demostración: la sincronización solo se usa con datos reales.");
-      const results =
-        a.kind === "all" ? await syncAll(repo, a.force) : [await (a.kind === "market" ? syncMarket : a.kind === "fixtures" ? syncFixtures : syncLineups)(repo, a.force)];
-      const failed = results.filter((r) => r.status === "error");
-      return { message: results.map((r) => `${r.kind}: ${r.message}`).join("\n"), data: { results, failed: failed.length } };
+      const r = await syncStep(repo, a.kind, { force: a.force, exclude: a.exclude });
+      return { message: `${r.kind}: ${r.message}`, data: r };
     }
   }
 }
 
-function importListings(repo: Repo, csv: string, date: string, createMissing: boolean) {
+async function importListings(repo: Store, csv: string, date: string, createMissing: boolean) {
   const { headers, rows } = parseCsv(csv);
   if (!headers.some((h) => ["nombre", "jugador", "name"].includes(h))) throw new DomainError("El CSV necesita una columna 'nombre' (o 'jugador').");
-  const catalog = repo.getPlayers();
+  const catalog = await repo.getPlayers();
   let added = 0, created = 0;
   const errors: string[] = [];
-  rows.forEach((row, i) => {
+  for (const [i, row] of rows.entries()) {
     const line = i + 2;
     const name = pick(row, "nombre", "jugador", "name");
-    if (!name) { errors.push(`Línea ${line}: falta el nombre`); return; }
+    if (!name) { errors.push(`Línea ${line}: falta el nombre`); continue; }
     const team = resolveTeamId(pick(row, "equipo", "club", "team"));
     const price = parseMoney(pick(row, "precio", "valor", "price", "value") ?? null);
     const seller = pick(row, "vendedor", "seller") ?? null;
     let player = matchPlayer(catalog, team, normalizeName(name));
     if (!player && !team) player = matchPlayer(catalog, null, normalizeName(name));
     if (!player) {
-      if (!createMissing) { errors.push(`Línea ${line}: ${name} no está en el catálogo`); return; }
+      if (!createMissing) { errors.push(`Línea ${line}: ${name} no está en el catálogo`); continue; }
       const pos = parsePosition(pick(row, "posicion", "pos", "position"));
-      if (!pos) { errors.push(`Línea ${line}: ${name} no existe y falta su posición`); return; }
+      if (!pos) { errors.push(`Línea ${line}: ${name} no existe y falta su posición`); continue; }
       try {
-        player = repo.createManualPlayer({ name, teamId: team, position: pos, value: price, status: parseStatus(pick(row, "estado", "status")) ?? "desconocido", startProb: null, source: "csv" });
+        player = await repo.createManualPlayer({ name, teamId: team, position: pos, value: price, status: parseStatus(pick(row, "estado", "status")) ?? "desconocido", startProb: null, source: "csv" });
         catalog.push(player);
         created++;
       } catch (e) {
         errors.push(`Línea ${line}: ${e instanceof Error ? e.message : e}`);
-        return;
+        continue;
       }
     }
-    repo.addListing({ date, playerId: player.id, askingPrice: price, seller });
+    await repo.addListing({ date, playerId: player.id, askingPrice: price, seller });
     added++;
-  });
+  }
   return {
     message: `${added} jugadores importados al mercado del ${date}${created ? ` (${created} creados como nuevos)` : ""}${errors.length ? `. ${errors.length} con errores.` : "."}`,
     data: { added, created, errors },

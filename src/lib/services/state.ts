@@ -1,5 +1,7 @@
-import type { Repo } from "../db/repo";
-import { today } from "../db/repo";
+import type { Store } from "../db/common";
+import { today } from "../db/common";
+import { calendarState } from "../analytics/fixtures";
+import { addDays } from "../domain/time";
 import { analyzePlayer, buildContext, type PlayerAnalysis } from "../analytics/analysis";
 import { compareLineup, recommendLineup, type LineupComparison, type LineupRecommendation } from "../analytics/lineup";
 import { generateRecommendations, type Recommendation } from "../analytics/recommendations";
@@ -36,14 +38,27 @@ export interface FullState {
   balance: { bought: number; sold: number; adjustments: number; realizedProfit: number };
 }
 
-export function buildState(repo: Repo, workspace: Workspace, now = new Date()): FullState {
+export async function buildState(repo: Store, workspace: Workspace, now = new Date()): Promise<FullState> {
   const day = today(now);
-  const settings = repo.getSettings();
-  const players = repo.getPlayers();
-  const snaps = repo.getSnapshots();
-  const fixtures = repo.getFixtures();
-  const allLineups = repo.getLineups();
-  const ctx = buildContext(fixtures, allLineups, day, now);
+  // Histórico necesario para tendencias (30 días) y gráficos (45 días).
+  const [settings, players, snaps, fixtures, squadEntries, allListings, transactions, valueHistory, syncLog, snapshotDays, ff, fx, lu] = await Promise.all([
+    repo.getSettings(),
+    repo.getPlayers(),
+    repo.getSnapshots(addDays(day, -60)),
+    repo.getFixtures(),
+    repo.getSquad(),
+    repo.getListings(),
+    repo.getTransactions(),
+    repo.getSquadValueHistory(),
+    repo.getSyncLog(20),
+    repo.snapshotDays(),
+    repo.lastSync("futbolfantasy", "market"),
+    repo.lastSync("calendario", "fixtures"),
+    repo.lastSync("futbolfantasy", "lineups"),
+  ]);
+  const nextMd = calendarState(fixtures, now).next?.matchday;
+  const lineups = nextMd != null ? await repo.getLineups(nextMd) : [];
+  const ctx = buildContext(fixtures, lineups, day, now);
   const analyses = new Map<string, PlayerAnalysis>();
   for (const p of players) analyses.set(p.id, analyzePlayer(p, snaps.get(p.id), ctx));
 
@@ -54,7 +69,6 @@ export function buildState(repo: Repo, workspace: Workspace, now = new Date()): 
   settings.lineup = lineup;
   const lineupIds = new Set(Object.values(lineup).filter(Boolean) as string[]);
 
-  const squadEntries = repo.getSquad();
   const squad: SquadRow[] = [];
   for (const e of squadEntries) {
     const a = analyses.get(e.playerId);
@@ -65,17 +79,21 @@ export function buildState(repo: Repo, workspace: Workspace, now = new Date()): 
   const squadValue = squad.reduce((s, r) => s + r.value, 0);
 
   // Evolución real: un punto por día en que se abre la app o se sincroniza.
-  if (squad.length > 0 || settings.budget !== 0) repo.recordSquadValue(day, squadValue, settings.budget);
+  if (squad.length > 0 || settings.budget !== 0) {
+    await repo.recordSquadValue(day, squadValue, settings.budget);
+    const i = valueHistory.findIndex((v) => v.date === day);
+    const point = { date: day, squadValue, budget: settings.budget };
+    if (i >= 0) valueHistory[i] = point;
+    else valueHistory.push(point);
+  }
 
   const squadA = squad.map((r) => r.analysis);
   const lineupRec = recommendLineup(squadA, settings.useCoach);
   const lineupCmp = compareLineup(lineup, analyses, lineupRec, new Set(squadEntries.map((s) => s.playerId)));
-  const allListings = repo.getListings();
   const listingsDate = allListings[0]?.date ?? null;
   const listings = allListings.filter((l) => l.date === listingsDate);
   const recommendations = generateRecommendations({ analyses, squad: squadEntries, settings, listings, lineupRec, lineupCmp });
 
-  const transactions = repo.getTransactions();
   let bought = 0, sold = 0, adjustments = 0, realizedProfit = 0;
   for (const t of transactions) {
     if (t.type === "compra") bought += t.amount;
@@ -85,9 +103,6 @@ export function buildState(repo: Repo, workspace: Workspace, now = new Date()): 
     } else adjustments += t.playerName.includes("(+)") ? t.amount : -t.amount;
   }
 
-  const ff = repo.lastSync("futbolfantasy", "market");
-  const fx = repo.lastSync("calendario", "fixtures");
-  const lu = repo.lastSync("futbolfantasy", "lineups");
   const marketUpdatedAt = ff?.finishedAt ?? (workspace === "demo" ? players[0]?.updatedAt ?? null : null);
 
   return {
@@ -104,13 +119,13 @@ export function buildState(repo: Repo, workspace: Workspace, now = new Date()): 
     lineupRec,
     lineupCmp,
     recommendations,
-    valueHistory: repo.getSquadValueHistory(),
-    syncLog: repo.getSyncLog(20),
+    valueHistory,
+    syncLog,
     dataFreshness: {
       marketUpdatedAt,
       fixturesUpdatedAt: fx?.finishedAt ?? (fixtures[0]?.source === "demo" ? fixtures[0].updatedAt : null),
-      lineupsUpdatedAt: [lu?.finishedAt, ...allLineups.filter((l) => l.matchday === ctx.calendar.next?.matchday).map((l) => l.updatedAt)].reduce<string | null>((m, x) => (x && (!m || x > m) ? x : m), null),
-      snapshotDays: repo.snapshotDays(),
+      lineupsUpdatedAt: [lu?.finishedAt, ...lineups.map((l) => l.updatedAt)].reduce<string | null>((m, x) => (x && (!m || x > m) ? x : m), null),
+      snapshotDays,
       playerCount: players.length,
     },
     balance: { bought, sold, adjustments, realizedProfit },

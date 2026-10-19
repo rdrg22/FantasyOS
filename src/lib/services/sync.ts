@@ -1,5 +1,5 @@
-import type { Repo, PlayerInput } from "../db/repo";
-import { today } from "../db/repo";
+import type { PlayerInput, Store } from "../db/common";
+import { today } from "../db/common";
 import { fetchText, ProviderError, sleep } from "../providers/http";
 import { FF_MARKET_URL, FF_POINTS_URL, parseFfMarket, parseFfPoints } from "../providers/futbolfantasy/market";
 import { FF_LINEUPS_HUB, parseHubLinks, parseMatchPage, type FfLineupPlayer } from "../providers/futbolfantasy/lineups";
@@ -11,15 +11,24 @@ import { normalizeName } from "../domain/normalize";
 import type { Player, PlayerStatus } from "../domain/types";
 import { madridToIso } from "../domain/time";
 
-export type SyncKind = "market" | "fixtures" | "lineups";
+/**
+ * Sincronización por pasos cortos. Cada paso cabe en el límite de tiempo de una
+ * función serverless (~10 s); las alineaciones se procesan por tandas de partidos.
+ */
+export type SyncKind = "fixtures" | "market" | "points" | "lineups";
+export const SYNC_STEPS: SyncKind[] = ["fixtures", "market", "points", "lineups"];
+
 export interface SyncResult {
   kind: SyncKind;
   status: "ok" | "error" | "skipped";
   message: string;
   count: number;
+  /** Solo alineaciones: partidos pendientes y los que fallaron en esta tanda */
+  remaining?: number;
+  failed?: string[];
 }
 
-const SOURCE: Record<SyncKind, string> = { market: "futbolfantasy", fixtures: "calendario", lineups: "futbolfantasy" };
+const SOURCE: Record<SyncKind, string> = { market: "futbolfantasy", points: "futbolfantasy", fixtures: "calendario", lineups: "futbolfantasy" };
 
 export function ffEnabled() {
   return (process.env.FOS_ENABLE_FUTBOLFANTASY ?? "true").toLowerCase() !== "false";
@@ -36,20 +45,20 @@ export function currentSeason(d = new Date()): string {
   return `${start}-${String((start + 1) % 100).padStart(2, "0")}`;
 }
 
-async function run(repo: Repo, kind: SyncKind, force: boolean, fn: () => Promise<{ count: number; message: string }>): Promise<SyncResult> {
+async function run(repo: Store, kind: SyncKind, force: boolean, fn: () => Promise<{ count: number; message: string }>): Promise<SyncResult> {
   const source = SOURCE[kind];
-  const last = repo.lastSync(source, kind);
+  const last = await repo.lastSync(source, kind);
   if (!force && last?.finishedAt && Date.now() - Date.parse(last.finishedAt) < minIntervalMs()) {
-    return { kind, status: "skipped", message: `Datos actualizados hace menos de ${Math.round(minIntervalMs() / 60000)} min; no se repite la petición.`, count: 0 };
+    return { kind, status: "skipped", message: `Actualizado hace menos de ${Math.round(minIntervalMs() / 60000)} min; no se repite la petición.`, count: 0 };
   }
-  const id = repo.startSync(source, kind);
+  const id = await repo.startSync(source, kind);
   try {
     const r = await fn();
-    repo.finishSync(id, "ok", r.message, r.count);
+    await repo.finishSync(id, "ok", r.message, r.count);
     return { kind, status: "ok", ...r };
   } catch (e) {
     const msg = e instanceof ProviderError || e instanceof Error ? e.message : String(e);
-    repo.finishSync(id, "error", msg, null);
+    await repo.finishSync(id, "error", msg, null);
     return { kind, status: "error", message: msg, count: 0 };
   }
 }
@@ -74,14 +83,15 @@ export function matchPlayer(catalog: Player[], teamId: string | null, normName: 
   return reverse.length === 1 ? reverse[0] : null;
 }
 
-// ───────────────────────── Mercado + puntos (FútbolFantasy) ─────────────────────────
+// ───────────────────────── Mercado (FútbolFantasy) ─────────────────────────
 
-export async function syncMarket(repo: Repo, force = false): Promise<SyncResult> {
+export async function syncMarket(repo: Store, force = false): Promise<SyncResult> {
   if (!ffEnabled()) return { kind: "market", status: "skipped", message: "Integración con FútbolFantasy desactivada (FOS_ENABLE_FUTBOLFANTASY=false).", count: 0 };
   return run(repo, "market", force, async () => {
     const html = await fetchText(FF_MARKET_URL);
     const market = parseFfMarket(html);
     const now = new Date().toISOString();
+    const updatedAt = market.sourceUpdatedAt ? madridToIso(market.sourceUpdatedAt.slice(0, 10), market.sourceUpdatedAt.slice(11, 16)) : now;
     const inputs: PlayerInput[] = market.players.map((m) => ({
       id: `ff:${m.ffId}`,
       name: m.name,
@@ -107,66 +117,70 @@ export async function syncMarket(repo: Repo, force = false): Promise<SyncResult>
       lastPoints: null,
       source: "futbolfantasy",
       sourceId: m.ffId,
-      updatedAt: market.sourceUpdatedAt ? madridToIso(market.sourceUpdatedAt.slice(0, 10), market.sourceUpdatedAt.slice(11, 16)) : now,
+      updatedAt,
     }));
-    repo.upsertPlayers(inputs);
-    repo.recordSnapshots(inputs.map((p) => ({ playerId: p.id, value: p.value! })), today(), "futbolfantasy");
+    await repo.upsertPlayers(inputs);
+    await repo.recordSnapshots(inputs.map((p) => ({ playerId: p.id, value: p.value! })), today(), "futbolfantasy");
 
     // Jugadores creados a mano que ahora existen en la fuente: se fusionan.
-    const catalog = repo.getPlayers();
+    const catalog = await repo.getPlayers();
     const ffPlayers = catalog.filter((p) => p.source === "futbolfantasy");
     let merged = 0;
     for (const p of catalog.filter((x) => x.source === "manual" || x.source === "csv")) {
       const target = matchPlayer(ffPlayers, p.teamId, p.normName);
-      if (target) { repo.relinkPlayer(p.id, target.id); merged++; }
-    }
-
-    // Puntos (segunda petición, espaciada)
-    let pointsMsg = "";
-    try {
-      await sleep(1500);
-      const pts = parseFfPoints(await fetchText(FF_POINTS_URL));
-      const byFf = new Map(ffPlayers.map((p) => [p.sourceId, p]));
-      const rows = [];
-      for (const r of pts.rows) {
-        const p = byFf.get(r.ffId) ?? matchPlayer(ffPlayers, r.teamId, r.normName);
-        if (!p) continue;
-        rows.push({ id: p.id, pointsTotal: r.pointsTotal, pointsAvg: r.pointsAvg, points5: r.points5, played5: r.played5, matchesPlayed: r.matchesPlayed, lastPoints: r.lastPoints });
+      if (target) {
+        await repo.relinkPlayer(p.id, target.id);
+        merged++;
       }
-      const n = repo.updatePoints(rows);
-      pointsMsg = ` · puntos de ${n} jugadores`;
-    } catch (e) {
-      pointsMsg = ` · puntos no disponibles (${e instanceof Error ? e.message : e})`;
     }
     return {
       count: inputs.length,
-      message: `${inputs.length} jugadores (${market.skipped} filas descartadas)${merged ? `, ${merged} jugadores manuales vinculados` : ""}${pointsMsg}. Fuente actualizada: ${market.sourceUpdatedAt?.replace("T", " ") ?? "desconocido"}`,
+      message: `${inputs.length} jugadores (${market.skipped} filas descartadas)${merged ? `, ${merged} jugadores manuales vinculados` : ""}. Fuente actualizada: ${market.sourceUpdatedAt?.replace("T", " ") ?? "desconocido"}`,
     };
+  });
+}
+
+// ───────────────────────── Puntos (FútbolFantasy) ─────────────────────────
+
+export async function syncPoints(repo: Store, force = false): Promise<SyncResult> {
+  if (!ffEnabled()) return { kind: "points", status: "skipped", message: "Integración con FútbolFantasy desactivada.", count: 0 };
+  return run(repo, "points", force, async () => {
+    const pts = parseFfPoints(await fetchText(FF_POINTS_URL));
+    const ffPlayers = (await repo.getPlayers()).filter((p) => p.source === "futbolfantasy");
+    if (ffPlayers.length === 0) throw new ProviderError("Sincroniza primero el mercado: no hay jugadores a los que asignar puntos.", "parse");
+    const byFf = new Map(ffPlayers.map((p) => [p.sourceId, p]));
+    const rows = [];
+    for (const r of pts.rows) {
+      const p = byFf.get(r.ffId) ?? matchPlayer(ffPlayers, r.teamId, r.normName);
+      if (!p) continue;
+      rows.push({ id: p.id, pointsTotal: r.pointsTotal, pointsAvg: r.pointsAvg, points5: r.points5, played5: r.played5, matchesPlayed: r.matchesPlayed, lastPoints: r.lastPoints });
+    }
+    const n = await repo.updatePoints(rows);
+    return { count: n, message: `Puntos de ${n} jugadores (${pts.rows.length} filas en la fuente).` };
   });
 }
 
 // ───────────────────────── Calendario ─────────────────────────
 
-export async function syncFixtures(repo: Repo, force = false): Promise<SyncResult> {
+export async function syncFixtures(repo: Store, force = false): Promise<SyncResult> {
   return run(repo, "fixtures", force, async () => {
     const season = currentSeason();
     if (footballDataEnabled()) {
       try {
         const r = await fetchFootballData(season);
         if (r.fixtures.length > 0) {
-          repo.upsertFixtures(r.fixtures);
+          await repo.upsertFixtures(r.fixtures);
           return { count: r.fixtures.length, message: `${r.fixtures.length} partidos desde football-data.org (${season}).` };
         }
       } catch (e) {
-        // si falla, se intenta openfootball
         const r = await fetchOpenfootball(season);
-        repo.upsertFixtures(r.fixtures);
+        await repo.upsertFixtures(r.fixtures);
         return { count: r.fixtures.length, message: `football-data.org falló (${e instanceof Error ? e.message : e}); ${r.fixtures.length} partidos desde openfootball.` };
       }
     }
     const r = await fetchOpenfootball(season);
     if (r.fixtures.length === 0) throw new ProviderError(`openfootball no tiene partidos para ${season}.`, "parse");
-    repo.upsertFixtures(r.fixtures);
+    await repo.upsertFixtures(r.fixtures);
     const played = r.fixtures.filter((f) => f.homeScore != null).length;
     return {
       count: r.fixtures.length,
@@ -175,7 +189,7 @@ export async function syncFixtures(repo: Repo, force = false): Promise<SyncResul
   });
 }
 
-// ───────────────────────── Alineaciones probables ─────────────────────────
+// ───────────────────────── Alineaciones probables (por tandas) ─────────────────────────
 
 function roleToStatus(p: FfLineupPlayer): PlayerStatus {
   if (p.role === "lesionado") return "lesionado";
@@ -184,25 +198,47 @@ function roleToStatus(p: FfLineupPlayer): PlayerStatus {
   return "disponible";
 }
 
-export async function syncLineups(repo: Repo, force = false): Promise<SyncResult> {
-  if (!ffEnabled()) return { kind: "lineups", status: "skipped", message: "Integración con FútbolFantasy desactivada.", count: 0 };
-  return run(repo, "lineups", force, async () => {
-    const cal = calendarState(repo.getFixtures());
-    const md = cal.next;
-    if (!md) throw new ProviderError("No hay próxima jornada en el calendario. Sincroniza primero el calendario.", "parse");
+/**
+ * Importa alineaciones de la próxima jornada partido a partido hasta agotar `budgetMs`.
+ * Un partido se considera al día si sus dos equipos se importaron dentro del intervalo mínimo.
+ * `exclude`: partidos que ya fallaron en esta ronda (no se reintentan).
+ */
+export async function syncLineups(repo: Store, opts: { force?: boolean; budgetMs?: number; exclude?: string[] } = {}): Promise<SyncResult> {
+  const { force = false, budgetMs = 7000, exclude = [] } = opts;
+  if (!ffEnabled()) return { kind: "lineups", status: "skipped", message: "Integración con FútbolFantasy desactivada.", count: 0, remaining: 0 };
+  const started = Date.now();
+  const md = calendarState(await repo.getFixtures()).next;
+  if (!md) return { kind: "lineups", status: "error", message: "No hay próxima jornada en el calendario. Sincroniza primero el calendario.", count: 0, remaining: 0 };
+
+  const existing = await repo.getLineups(md.matchday);
+  const freshTeams = new Set(existing.filter((e) => !e.manual && Date.now() - Date.parse(e.updatedAt) < minIntervalMs()).map((e) => e.teamId));
+  const key = (f: { homeId: string; awayId: string }) => `${f.homeId}-${f.awayId}`;
+  const pending = md.fixtures.filter((f) => (force || !(freshTeams.has(f.homeId) && freshTeams.has(f.awayId))) && !exclude.includes(key(f)));
+  if (pending.length === 0) {
+    return { kind: "lineups", status: "skipped", message: `Jornada ${md.matchday}: alineaciones ya actualizadas.`, count: 0, remaining: 0, failed: [] };
+  }
+
+  const id = await repo.startSync("futbolfantasy", "lineups");
+  try {
     const links = parseHubLinks(await fetchText(FF_LINEUPS_HUB));
-    const catalog = repo.getPlayers();
+    const catalog = await repo.getPlayers();
     const now = new Date().toISOString();
-    let teams = 0;
+    let done = 0;
     let players = 0;
+    const failed: string[] = [];
     const errors: string[] = [];
-    for (const f of md.fixtures) {
-      const url = links.get(`${f.homeId}-${f.awayId}`);
+    for (const f of pending) {
+      if (done + failed.length > 0 && Date.now() - started > budgetMs) break;
       const label = `${getTeam(f.homeId)?.name}–${getTeam(f.awayId)?.name}`;
-      if (!url) { errors.push(`${label}: sin página`); continue; }
-      await sleep(1500);
+      const url = links.get(key(f));
+      if (!url) {
+        failed.push(key(f));
+        errors.push(`${label}: sin página`);
+        continue;
+      }
+      if (done + failed.length > 0) await sleep(1000);
       try {
-        const html = await fetchText(url);
+        const html = await fetchText(url, { timeoutMs: 8000, retries: 0 });
         const res = parseMatchPage(html, getTeam(f.homeId)!.name, getTeam(f.awayId)!.name);
         for (const [teamId, list] of [[f.homeId, res.home], [f.awayId, res.away]] as const) {
           const availability: { id: string; status: PlayerStatus; startProb: number | null; note: string | null }[] = [];
@@ -211,24 +247,45 @@ export async function syncLineups(repo: Repo, force = false): Promise<SyncResult
             if (match) availability.push({ id: match.id, status: roleToStatus(p), startProb: p.probability, note: p.note });
             return { playerName: match?.name ?? p.displayName, playerId: match?.id ?? null, role: p.role, probability: p.probability, source: "futbolfantasy" as const, updatedAt: now };
           });
-          repo.replaceImportedLineup(md.matchday, teamId, entries);
-          repo.updateAvailability(availability);
-          teams++;
+          await repo.replaceImportedLineup(md.matchday, teamId, entries);
+          await repo.updateAvailability(availability);
           players += entries.length;
         }
+        done++;
       } catch (e) {
+        failed.push(key(f));
         errors.push(`${label}: ${e instanceof Error ? e.message : e}`);
       }
     }
-    if (teams === 0) throw new ProviderError(`No se pudo importar ninguna alineación de la jornada ${md.matchday}. ${errors.join(" · ")}`, "parse");
-    return { count: players, message: `Jornada ${md.matchday}: ${teams} equipos, ${players} jugadores${errors.length ? `. Incidencias: ${errors.join(" · ")}` : ""}.` };
-  });
+    const remaining = pending.length - done - failed.length;
+    const message = `Jornada ${md.matchday}: ${done} partidos importados (${players} jugadores)${remaining ? `, ${remaining} pendientes` : ""}${errors.length ? `. Incidencias: ${errors.join(" · ")}` : ""}.`;
+    await repo.finishSync(id, done > 0 || remaining > 0 ? "ok" : "error", message, players);
+    return { kind: "lineups", status: done > 0 || remaining > 0 ? "ok" : "error", message, count: players, remaining, failed };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    await repo.finishSync(id, "error", msg, null);
+    return { kind: "lineups", status: "error", message: msg, count: 0, remaining: 0, failed: [] };
+  }
 }
 
-export async function syncAll(repo: Repo, force = false): Promise<SyncResult[]> {
-  const out: SyncResult[] = [];
-  out.push(await syncFixtures(repo, force));
-  out.push(await syncMarket(repo, force));
-  out.push(await syncLineups(repo, force));
+/** Ejecuta todos los pasos (para CLI o procesos sin límite de tiempo). */
+export async function syncAll(repo: Store, force = false): Promise<SyncResult[]> {
+  const out: SyncResult[] = [await syncFixtures(repo, force), await syncMarket(repo, force), await syncPoints(repo, force)];
+  const exclude: string[] = [];
+  for (let i = 0; i < 20; i++) {
+    const r = await syncLineups(repo, { force: force && i === 0, budgetMs: 60_000, exclude });
+    out.push(r);
+    exclude.push(...(r.failed ?? []));
+    if (!r.remaining) break;
+  }
   return out;
+}
+
+export async function syncStep(repo: Store, kind: SyncKind, opts: { force?: boolean; exclude?: string[] } = {}): Promise<SyncResult> {
+  switch (kind) {
+    case "fixtures": return syncFixtures(repo, opts.force);
+    case "market": return syncMarket(repo, opts.force);
+    case "points": return syncPoints(repo, opts.force);
+    case "lineups": return syncLineups(repo, { force: opts.force, exclude: opts.exclude });
+  }
 }

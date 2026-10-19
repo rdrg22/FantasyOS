@@ -1,6 +1,6 @@
 # API
 
-Todas las rutas se ejecutan en el servidor (runtime Node). El espacio de datos (real/demo) se toma de la cookie `fos_ws`.
+Todas las rutas se ejecutan en el servidor (runtime Node). El espacio de datos (real/demo) se toma de la cookie `fos_ws`. En modo Supabase todas (salvo `/api/cron/daily`) exigen sesión iniciada y responden 401 si no la hay.
 
 ## Rutas
 
@@ -10,7 +10,8 @@ Todas las rutas se ejecutan en el servidor (runtime Node). El espacio de datos (
 | `POST` | `/api/workspace` | `{ "workspace": "real" \| "demo" }`. Cambia de espacio; la demo se genera la primera vez. |
 | `GET` | `/api/state` | Resumen de solo lectura: saldo, plantilla, recomendaciones, frescura de datos. |
 | `GET` | `/api/export` | Copia de seguridad JSON (plantilla, operaciones, ajustes, mercado, evolución). |
-| `GET` | `/api/cron/daily` | Sincroniza calendario, mercado/puntos y alineaciones (datos reales) y registra el valor diario. Sin `FOS_CRON_SECRET` solo desde `localhost`; con él, `?secret=…`. `&force=1` ignora el intervalo mínimo. |
+| `GET` | `/api/cron/daily` | Sincroniza datos reales por pasos: `?step=fixtures\|market\|points\|lineups\|snapshot` (`lineups` admite `&exclude=local-visitante,...`; `snapshot` guarda el valor diario de la plantilla de cada usuario). Sin `step`, todos seguidos. Autorización: `Authorization: Bearer <FOS_CRON_SECRET>` o `?secret=`; sin secreto configurado, solo desde `localhost`. `&force=1` ignora el intervalo mínimo. |
+| `POST` | `/api/auth/signout` | Cierra la sesión (modo Supabase) y redirige a `/login`. |
 
 ## Acciones de `/api/actions`
 
@@ -39,7 +40,7 @@ Importes en euros enteros (≥ 0). Fechas `AAAA-MM-DD`. Probabilidades 0–1.
 | `upsertLineupEntry` | `id?, matchday, teamId, playerName, playerId?, role, probability?` | Edición manual de alineación probable |
 | `deleteLineupEntry` | `id` | — |
 | `resetDemo` | — | Regenera la demo (solo en modo demo) |
-| `sync` | `kind: market\|fixtures\|lineups\|all, force` | Sincroniza fuentes reales (no disponible en demo) |
+| `sync` | `kind: fixtures\|market\|points\|lineups, force, exclude?` | Un paso de sincronización de datos reales (no disponible en demo). `lineups` procesa una tanda de partidos y devuelve `data.remaining` y `data.failed` para continuar |
 
 ### Ejemplo
 

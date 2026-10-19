@@ -6,7 +6,7 @@ import { SquadManager, type SquadRowView, type CatalogItem } from "@/components/
 
 export default async function PlantillaPage() {
   const { repo, workspace } = await getRepo();
-  const s = buildState(repo, workspace);
+  const s = await buildState(repo, workspace);
   const rows: SquadRowView[] = s.squad.map((r) => ({
     player: toView(r.analysis),
     purchasePrice: r.entry.purchasePrice,

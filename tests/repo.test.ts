@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { DatabaseSync } from "node:sqlite";
-import { DomainError, Repo } from "@/lib/db/repo";
+import { DomainError, SqliteRepo as Repo } from "@/lib/db/repo";
+import { asStore } from "@/lib/db/sqlite-store";
 import { closeDb, openDb } from "@/lib/db/sqlite";
 import { ActionSchema, runAction } from "@/lib/services/actions";
 
@@ -92,7 +93,7 @@ describe("acciones (API)", () => {
 
   it("importa el mercado del día por CSV creando los que faltan", async () => {
     mk("Nico Williams", "DEL", 38_000_000, "athletic");
-    const r = await runAction(repo, "real", ActionSchema.parse({
+    const r = await runAction(asStore(repo), "real", ActionSchema.parse({
       type: "importListingsCsv",
       date: "2026-10-19",
       csv: "nombre;equipo;posicion;precio\nNico Williams;Athletic;DEL;38.500.000\nNuevo Fichaje;Getafe;MED;1,2M\nSin Posicion;Getafe;;1M\n",
@@ -106,6 +107,6 @@ describe("acciones (API)", () => {
   });
 
   it("no permite sincronizar en modo demo", async () => {
-    await expect(runAction(repo, "demo", ActionSchema.parse({ type: "sync", kind: "market" }))).rejects.toThrow(/demostración/);
+    await expect(runAction(asStore(repo), "demo", ActionSchema.parse({ type: "sync", kind: "market" }))).rejects.toThrow(/demostración/);
   });
 });

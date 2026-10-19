@@ -8,18 +8,21 @@
 - **Zod** para validar todo lo que entra: respuestas externas y acciones del usuario.
 - **SQLite integrado en Node (`node:sqlite`)** para la persistencia.
 
-### ¿Por qué SQLite y no Supabase (por ahora)?
+### Persistencia: dos almacenes con la misma interfaz
 
-El objetivo inicial es **una única cuenta personal**. SQLite local:
-- funciona sin crear cuentas, claves ni servicios externos, y sin compilar dependencias nativas (viene con Node ≥ 22.13);
-- es transaccional (compras/ventas atómicas) y sobrevive a reinicios;
-- se copia con un archivo.
+- **SQLite local** (`src/lib/db/repo.ts` + `sqlite-store.ts`): sin cuentas ni servicios externos; ideal para usarlo en tu ordenador y para los tests. Se carga de forma dinámica, así que el despliegue no necesita `node:sqlite`.
+- **Supabase / Postgres** (`src/lib/db/supabase-store.ts` + `supabase/migrations/`): se activa con las variables de Supabase. Necesario en Netlify, donde el disco de las funciones es efímero.
 
-La arquitectura ya está preparada para varios usuarios y para cambiar de motor:
-- todas las tablas de usuario llevan `user_id` (hoy `"local"`, ver `currentUserId()` en `src/lib/services/context.ts`);
-- todo el acceso a datos pasa por la clase `Repo` (`src/lib/db/repo.ts`); las páginas y el motor no hablan SQL.
+Ambos cumplen el tipo `Store` (`src/lib/db/common.ts`); `storeFor()` en `src/lib/services/context.ts` elige uno u otro.
 
-**Migración a Supabase**: crear las mismas tablas en Postgres (el esquema de `sqlite.ts` es SQL estándar), implementar un `Repo` con `@supabase/supabase-js` usando la *service key* solo en el servidor, activar RLS por `user_id = auth.uid()` y sustituir `currentUserId()` por el usuario de Supabase Auth. Nada más cambia.
+**Seguridad en Supabase**
+- El navegador solo usa la clave publicable para iniciar sesión (Supabase Auth, cookies gestionadas por `@supabase/ssr`).
+- El servidor valida la sesión (`auth.getUser()`) y accede a los datos con la clave secreta, filtrando siempre por `user_id` (id de Supabase Auth) y `ws` (real/demo).
+- RLS activado en todas las tablas y sin políticas: con la clave publicable no se puede leer ni escribir nada.
+- `src/proxy.ts` refresca la sesión y redirige a `/login`; cada página y ruta API vuelve a comprobarla.
+- Compras, ventas, ajustes de saldo, fusión de jugadores y escrituras masivas son funciones SQL (`fos_*`) ejecutables solo por `service_role`, para que sean atómicas.
+
+**Límites de tiempo en Netlify**: la sincronización está dividida en pasos (`fixtures`, `market`, `points`, `lineups` por tandas) para que cada petición quepa en el tiempo máximo de una función.
 
 ## Capas
 

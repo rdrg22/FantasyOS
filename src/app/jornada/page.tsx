@@ -9,9 +9,9 @@ import type { ProbableLineupEntry } from "@/lib/domain/types";
 
 export default async function JornadaPage() {
   const { repo, workspace } = await getRepo();
-  const s = buildState(repo, workspace);
+  const s = await buildState(repo, workspace);
   const md = s.calendar.next;
-  const lineups = md ? repo.getLineups(md.matchday) : [];
+  const lineups = md ? await repo.getLineups(md.matchday) : [];
   const byTeam = new Map<string, ProbableLineupEntry[]>();
   for (const l of lineups) (byTeam.get(l.teamId) ?? byTeam.set(l.teamId, []).get(l.teamId)!).push(l);
   const mine = new Set(s.squad.map((r) => r.entry.playerId));

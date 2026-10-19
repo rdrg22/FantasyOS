@@ -1,6 +1,9 @@
 import type { DatabaseSync } from "node:sqlite";
 import { randomUUID } from "node:crypto";
 import { tx } from "./sqlite";
+import { DEFAULT_SETTINGS, DomainError, today, type PlayerInput } from "./common";
+
+export { DEFAULT_SETTINGS, DomainError, today, type PlayerInput };
 import { normalizeName } from "../domain/normalize";
 import { formationSlots } from "../domain/formations";
 import type {
@@ -23,23 +26,6 @@ import type {
 } from "../domain/types";
 
 type Row = Record<string, unknown>;
-export type PlayerInput = Omit<Player, "overridden" | "normName"> & { normName?: string };
-
-export const DEFAULT_SETTINGS: Settings = {
-  budget: 0,
-  formation: "4-3-3",
-  lineup: {},
-  useCoach: false,
-  maxSquadSize: 24,
-  teamName: "Mi equipo",
-};
-
-export class DomainError extends Error {
-  constructor(message: string, public status = 400) {
-    super(message);
-  }
-}
-
 const now = () => new Date().toISOString();
 const num = (v: unknown): number | null => (v == null ? null : Number(v));
 
@@ -95,7 +81,7 @@ function rowToSync(r: Row): SyncLogEntry {
   };
 }
 
-export class Repo {
+export class SqliteRepo {
   constructor(public db: DatabaseSync, public userId: string) {}
 
   // ───────────────────────── Jugadores ─────────────────────────
@@ -263,8 +249,10 @@ export class Repo {
     });
   }
 
-  getSnapshots(): Map<string, PriceSnapshot[]> {
-    const rows = this.db.prepare("SELECT * FROM price_snapshots ORDER BY player_id, date").all() as Row[];
+  getSnapshots(since?: string): Map<string, PriceSnapshot[]> {
+    const rows = (since
+      ? this.db.prepare("SELECT * FROM price_snapshots WHERE date >= ? ORDER BY player_id, date").all(since)
+      : this.db.prepare("SELECT * FROM price_snapshots ORDER BY player_id, date").all()) as Row[];
     const out = new Map<string, PriceSnapshot[]>();
     for (const r of rows) {
       const s: PriceSnapshot = { playerId: String(r.player_id), date: String(r.date), value: Number(r.value), source: r.source as DataSource };
@@ -617,9 +605,25 @@ export class Repo {
       .get(source, kind, status) as Row | undefined;
     return r ? rowToSync(r) : null;
   }
+
+  // ───────────────────────── Utilidades de carga ─────────────────────────
+
+  /** Vacía el espacio de trabajo (cada espacio es un archivo distinto en SQLite). */
+  resetWorkspace() {
+    this.db.exec(`DELETE FROM players; DELETE FROM player_overrides; DELETE FROM price_snapshots; DELETE FROM squad; DELETE FROM transactions;
+      DELETE FROM market_listings; DELETE FROM fixtures; DELETE FROM probable_lineups; DELETE FROM settings;
+      DELETE FROM squad_value_history; DELETE FROM sync_log;`);
+  }
+
+  /** Inserta una operación histórica sin mover el saldo (solo para cargas de datos). */
+  insertTransactionRaw(t: { type: TransactionType; playerId: string | null; playerName: string; amount: number; costBasis: number | null; date: string; notes: string | null }) {
+    this.insertTx(t.type, t.playerId, t.playerName, t.amount, t.date, t.notes, t.costBasis);
+  }
+
+  /** Usuarios con datos (para la sincronización diaria). */
+  listUserIds(): string[] {
+    return (this.db.prepare("SELECT DISTINCT user_id FROM squad UNION SELECT DISTINCT user_id FROM settings").all() as Row[]).map((r) => String(r.user_id));
+  }
 }
 
-/** Fecha local (Europe/Madrid) en formato YYYY-MM-DD. */
-export function today(d = new Date()): string {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Madrid", year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
-}
+

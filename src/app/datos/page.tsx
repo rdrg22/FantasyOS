@@ -43,7 +43,7 @@ const SOURCES = [
 
 export default async function DatosPage() {
   const { repo, workspace } = await getRepo();
-  const s = buildState(repo, workspace);
+  const s = await buildState(repo, workspace);
   return (
     <>
       <PageHeader
@@ -62,7 +62,7 @@ export default async function DatosPage() {
                   <div className="panel-inset space-y-2 p-3">
                     <div className="text-sm font-medium">Precios y puntos</div>
                     <Freshness label="Última" at={s.dataFreshness.marketUpdatedAt} />
-                    <SyncButton kind="market" label="Sincronizar" ghost />
+                    <SyncButton kind={["market", "points"]} label="Sincronizar" ghost />
                   </div>
                   <div className="panel-inset space-y-2 p-3">
                     <div className="text-sm font-medium">Calendario</div>

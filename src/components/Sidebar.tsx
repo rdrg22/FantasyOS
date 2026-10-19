@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { Activity, CalendarDays, Database, LayoutDashboard, Menu, ShoppingCart, Sparkles, Users, X, Shirt } from "lucide-react";
+import { Activity, CalendarDays, Database, LayoutDashboard, LogOut, Menu, ShoppingCart, Sparkles, Users, X, Shirt } from "lucide-react";
 import { timeAgo } from "@/lib/domain/time";
 import { WorkspaceSwitch } from "./WorkspaceSwitch";
 
@@ -17,7 +17,7 @@ const NAV = [
   { href: "/datos", label: "Datos y fuentes", icon: Database, hint: "Sincronización y ajustes" },
 ];
 
-export function Sidebar({ workspace, teamName, lastMarketSync }: { workspace: "real" | "demo"; teamName: string; lastMarketSync: string | null }) {
+export function Sidebar({ workspace, teamName, lastMarketSync, canLogout = false }: { workspace: "real" | "demo"; teamName: string; lastMarketSync: string | null; canLogout?: boolean }) {
   const path = usePathname();
   const [open, setOpen] = useState(false);
   const stale = !lastMarketSync || Date.now() - Date.parse(lastMarketSync) > 26 * 3600 * 1000;
@@ -68,6 +68,13 @@ export function Sidebar({ workspace, teamName, lastMarketSync }: { workspace: "r
             {workspace === "demo" ? "Datos de demostración" : lastMarketSync ? <>Mercado: {timeAgo(lastMarketSync)}</> : "Mercado sin sincronizar"}
           </span>
         </Link>
+        {canLogout && (
+          <form action="/api/auth/signout" method="post">
+            <button className="flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-[12px] text-dim hover:bg-ink-800 hover:text-fg">
+              <LogOut size={14} /> Cerrar sesión
+            </button>
+          </form>
+        )}
       </div>
     </nav>
   );

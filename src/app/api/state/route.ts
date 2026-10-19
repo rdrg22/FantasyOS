@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getRepo } from "@/lib/services/context";
+import { getRepoOrThrow } from "@/lib/services/context";
 import { buildState } from "@/lib/services/state";
 
 export const runtime = "nodejs";
@@ -7,8 +7,10 @@ export const dynamic = "force-dynamic";
 
 /** Resumen de solo lectura: saldo, plantilla, recomendaciones y frescura de datos. */
 export async function GET() {
-  const { repo, workspace } = await getRepo();
-  const s = buildState(repo, workspace);
+  const ctx = await getRepoOrThrow().catch(() => null);
+  if (!ctx) return NextResponse.json({ ok: false, error: "Sesión caducada: vuelve a iniciar sesión." }, { status: 401 });
+  const { repo, workspace } = ctx;
+  const s = await buildState(repo, workspace);
   return NextResponse.json({
     workspace,
     today: s.today,

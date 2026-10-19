@@ -1,26 +1,82 @@
 "use client";
 
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { RefreshCw } from "lucide-react";
-import { useAction } from "./useAction";
 import { useToast } from "./Toast";
 
-export function SyncButton({ kind, label, force = false, ghost = false }: { kind: "market" | "fixtures" | "lineups" | "all"; label: string; force?: boolean; ghost?: boolean }) {
-  const { run, busy } = useAction();
+type Step = "fixtures" | "market" | "points" | "lineups";
+const LABEL: Record<Step, string> = { fixtures: "calendario", market: "mercado", points: "puntos", lineups: "alineaciones" };
+
+interface StepResult {
+  kind: Step;
+  status: "ok" | "error" | "skipped";
+  message: string;
+  remaining?: number;
+  failed?: string[];
+}
+
+/**
+ * Sincroniza por pasos cortos (cada petición cabe en el límite de una función serverless).
+ * Las alineaciones se piden por tandas hasta que no quedan partidos pendientes.
+ */
+export function SyncButton({ kind, label, force = false, ghost = false }: { kind: Step | Step[] | "all"; label: string; force?: boolean; ghost?: boolean }) {
+  const [progress, setProgress] = useState<string | null>(null);
+  const router = useRouter();
   const toast = useToast();
+  const steps: Step[] = kind === "all" ? ["fixtures", "market", "points", "lineups"] : Array.isArray(kind) ? kind : [kind];
+
+  async function call(step: Step, exclude: string[], forceThis: boolean): Promise<StepResult | null> {
+    const res = await fetch("/api/actions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type: "sync", kind: step, force: forceThis, exclude }),
+    }).catch(() => null);
+    if (!res) {
+      toast("error", "No se pudo conectar con el servidor.");
+      return null;
+    }
+    const json = await res.json().catch(() => ({ ok: false, error: `Error HTTP ${res.status}` }));
+    if (!json.ok) {
+      toast("error", json.error ?? "Error al sincronizar.");
+      return null;
+    }
+    return json.data as StepResult;
+  }
+
+  async function run() {
+    const lines: string[] = [];
+    let failed = false;
+    for (const step of steps) {
+      setProgress(`Actualizando ${LABEL[step]}…`);
+      if (step !== "lineups") {
+        const r = await call(step, [], force);
+        if (!r) return setProgress(null);
+        if (r.status === "error") failed = true;
+        lines.push(`${LABEL[step]}: ${r.message}`);
+        continue;
+      }
+      const exclude: string[] = [];
+      let last: StepResult | null = null;
+      for (let i = 0; i < 12; i++) {
+        last = await call("lineups", exclude, force && i === 0);
+        if (!last) return setProgress(null);
+        exclude.push(...(last.failed ?? []));
+        if (!last.remaining) break;
+        setProgress(`Alineaciones: quedan ${last.remaining} partidos…`);
+      }
+      if (last?.status === "error") failed = true;
+      if (last) lines.push(`alineaciones: ${last.message}`);
+    }
+    setProgress(null);
+    toast(failed ? "error" : "ok", lines.join("\n"));
+    router.refresh();
+  }
+
   return (
-    <button
-      className={ghost ? "btn-ghost" : "btn-primary"}
-      disabled={busy}
-      onClick={async () => {
-        const r = await run({ type: "sync", kind, force }, { silent: true });
-        if (r.ok) {
-          const d = r.data as { failed: number } | undefined;
-          toast(d && d.failed > 0 ? "error" : "ok", r.message ?? "Sincronizado");
-        }
-      }}
-    >
-      <RefreshCw size={15} className={busy ? "animate-spin" : ""} />
-      {busy ? "Sincronizando…" : label}
+    <button className={ghost ? "btn-ghost" : "btn-primary"} disabled={progress != null} onClick={run}>
+      <RefreshCw size={15} className={progress ? "animate-spin" : ""} />
+      {progress ?? label}
     </button>
   );
 }

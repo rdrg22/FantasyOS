@@ -6,7 +6,7 @@ import { RecommendationList } from "@/components/RecommendationList";
 
 export default async function RecomendacionesPage() {
   const { repo, workspace } = await getRepo();
-  const s = buildState(repo, workspace);
+  const s = await buildState(repo, workspace);
   const teams: Record<string, string | null> = {};
   for (const r of s.recommendations) if (r.playerId) teams[r.playerId] = s.analyses.get(r.playerId)?.player.teamId ?? null;
   return (

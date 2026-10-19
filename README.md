@@ -16,12 +16,23 @@ Asistente personal para **LaLiga Fantasy**: centraliza tu plantilla, tu presupue
 | **Jornada** | Partidos de la próxima jornada con fecha/hora, alineaciones probables (titulares, dudas, suplentes, lesionados, sancionados, %), edición manual, revisión de tus jugadores y clasificación calculada. |
 | **Datos y fuentes** | Sincronización, registro de cada actualización, límites de cada fuente, ajustes, copia de seguridad y modo demo. |
 
+## Dos modos de funcionamiento
+
+| | **Local** (por defecto) | **Supabase** (producción / Netlify) |
+|---|---|---|
+| Se activa | sin variables de Supabase | con `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` y `SUPABASE_SECRET_KEY` |
+| Datos | SQLite en `data/` (`node:sqlite`) | Postgres de Supabase |
+| Login | no (una sola cuenta local) | sí, Supabase Auth (email y contraseña) |
+| Demo | archivo `fantasy-os-demo.db` | filas con `ws = 'demo'` |
+
+El código de las pantallas y del motor es el mismo; solo cambia el almacén (`src/lib/db/sqlite-store.ts` o `src/lib/db/supabase-store.ts`).
+
 ## Requisitos
 
-- **Node.js 22.13 o superior** (probado con Node 24). La base de datos usa `node:sqlite`, que viene integrado en Node: no hay que compilar nada ni instalar un servidor de base de datos.
+- **Node.js 22.13 o superior** (probado con Node 24).
 - npm 10+.
 
-## Instalación y ejecución
+## Instalación y ejecución en local
 
 ```bash
 npm install
@@ -31,47 +42,69 @@ npm install
 npm run dev
 ```
 
-Abre <http://localhost:3000>. Para producción:
-
-```bash
-npm run build
-```
-
-```bash
-npm start
-```
+Abre <http://localhost:3000>. Si `.env.local` tiene las tres variables de Supabase, usarás la base de datos de Supabase y te pedirá iniciar sesión; si no, SQLite local sin login.
 
 ### Primeros pasos
 
-1. En **Hoy** pulsa **Actualizar datos**: descarga calendario, precios, puntos y alineaciones probables (tarda ~30 s porque espacia las peticiones).
+1. En **Hoy** pulsa **Actualizar datos**: descarga calendario, precios, puntos y alineaciones probables, paso a paso.
 2. En **Mi equipo → Presupuesto y operaciones** introduce tu saldo real.
 3. En **Mi equipo → Añadir jugador** busca tus jugadores y marca «Ya lo tengo» con su precio de compra.
 4. Cada día, registra en **Mercado → Mi mercado de hoy** los jugadores que ves en el mercado de tu liga (uno a uno o por CSV).
 5. Revisa **Hoy** y **Once ideal** antes de que empiece la jornada.
 
-¿Solo quieres probar? Cambia a **Demo** en la barra lateral: carga una liga ficticia completa en una base de datos separada.
+¿Solo quieres probar? Cambia a **Demo** en la barra lateral: carga una liga ficticia completa, separada de tus datos.
+
+## Despliegue en Netlify con Supabase
+
+### 1. Supabase (una vez)
+1. Crea un proyecto (plan Free).
+2. Aplica las migraciones de `supabase/migrations/` en orden en **SQL Editor** (o con la integración MCP de Supabase). Crean las tablas con RLS activado y sin políticas: solo el servidor (clave secreta) accede a los datos.
+3. **Authentication → Users → Add user**: tu email y contraseña, con **Auto Confirm User**.
+4. **Authentication → Sign In / Providers**: desactiva **Allow new users to sign up**.
+5. Activa también **Leaked password protection** (recomendado por el asesor de seguridad).
+
+### 2. Netlify
+1. **Add new site → Import from Git →** este repositorio. Netlify detecta Next.js (`netlify.toml` ya está incluido).
+2. **Site configuration → Environment variables**:
+
+| Variable | Valor |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | URL del proyecto |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | clave publicable (`sb_publishable_…`) |
+| `SUPABASE_SECRET_KEY` | clave secreta (`sb_secret_…`). Márcala como secreta en Netlify |
+| `FOS_CRON_SECRET` | cadena larga aleatoria (la misma que en tu `.env.local`) |
+
+3. Despliega. Entra en la URL de Netlify e inicia sesión.
+
+### Sincronización automática en Netlify
+Las funciones programadas de `netlify/functions/` llaman a `/api/cron/daily` por pasos (cada petición cabe en el límite de tiempo de una función):
+- `daily-sync`: cada día a las 07:00 UTC → calendario, mercado, puntos y valor de tu plantilla.
+- `lineups-sync`: a las 07:20, 13:20 y 19:20 UTC → alineaciones probables por tandas.
+
+Desde la web, «Actualizar datos» hace lo mismo paso a paso, mostrando el progreso.
 
 ## Configuración (variables de entorno)
 
-Copia `.env.example` a `.env.local`. Todas son opcionales y **solo se leen en el servidor**; ninguna clave llega al navegador.
+Copia `.env.example` a `.env.local`. Las claves secretas **solo se leen en el servidor**.
 
 | Variable | Por defecto | Descripción |
 |---|---|---|
-| `FOS_DATA_DIR` | `./data` | Carpeta de las bases de datos SQLite (`fantasy-os.db` y `fantasy-os-demo.db`). |
+| `NEXT_PUBLIC_SUPABASE_URL` | — | URL del proyecto de Supabase |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | — | Clave publicable (solo para iniciar sesión desde el navegador) |
+| `SUPABASE_SECRET_KEY` | — | Clave secreta (solo servidor) |
+| `FOS_CRON_SECRET` | — | Protege `/api/cron/daily` (`Authorization: Bearer …` o `?secret=`). Sin ella solo se acepta desde `localhost`. |
+| `FOS_DATA_DIR` | `./data` | Carpeta de las bases de datos SQLite (modo local). |
 | `FOS_ENABLE_FUTBOLFANTASY` | `true` | `false` desactiva la lectura de FútbolFantasy (trabajarás solo con datos manuales/CSV). |
 | `FOS_MIN_SYNC_INTERVAL_MIN` | `60` | Minutos mínimos entre dos sincronizaciones de la misma fuente (mín. 5). |
 | `FOOTBALL_DATA_API_KEY` | — | Clave gratuita de football-data.org para el calendario. Sin ella se usa openfootball. |
-| `FOS_CRON_SECRET` | — | Si se define, `/api/cron/daily` exige `?secret=…`. Si no, solo acepta peticiones a `localhost`. |
 
-## Sincronización diaria automática
-
-Las tendencias propias se construyen con **una instantánea de precios por día**. Para no depender de abrir la web:
+## Sincronización desde la línea de comandos
 
 ```bash
 npm run sync
 ```
 
-Opciones: `npm run sync -- market`, `-- fixtures`, `-- lineups`, `-- all --force`. En Windows prográmalo con el Programador de tareas (acción: `npm run sync` en la carpeta del proyecto) una vez al día, p. ej. a las 9:00 (FútbolFantasy actualiza los valores de madrugada). Con la web en marcha también sirve `GET http://localhost:3000/api/cron/daily`.
+Opciones: `npm run sync -- market` (o `fixtures`, `points`, `lineups`), `npm run sync -- all --force`. Usa Supabase si `.env.local` lo configura; si no, SQLite. En local puedes programarlo con el Programador de tareas de Windows.
 
 ## Pruebas
 

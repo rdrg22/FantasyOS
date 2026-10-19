@@ -6,7 +6,7 @@ import { MarketView } from "@/components/market/MarketView";
 
 export default async function MercadoPage() {
   const { repo, workspace } = await getRepo();
-  const s = buildState(repo, workspace);
+  const s = await buildState(repo, workspace);
   const players = [...s.analyses.values()].map(toView);
   const squadIds = s.squad.map((r) => r.entry.playerId);
   return (
@@ -22,7 +22,7 @@ export default async function MercadoPage() {
         actions={
           <>
             <Freshness label="Precios" at={s.dataFreshness.marketUpdatedAt} />
-            {workspace === "real" && <SyncButton kind="market" label="Actualizar precios" />}
+            {workspace === "real" && <SyncButton kind={["market", "points"]} label="Actualizar precios" />}
           </>
         }
       />

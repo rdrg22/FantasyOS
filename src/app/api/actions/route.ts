@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
-import { getRepo } from "@/lib/services/context";
+import { getRepoOrThrow } from "@/lib/services/context";
 import { ActionSchema, formatZodError, runAction } from "@/lib/services/actions";
-import { DomainError } from "@/lib/db/repo";
+import { DomainError } from "@/lib/db/common";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,7 +17,7 @@ export async function POST(req: Request) {
   }
   try {
     const action = ActionSchema.parse(body);
-    const { repo, workspace } = await getRepo();
+    const { repo, workspace } = await getRepoOrThrow();
     const r = await runAction(repo, workspace, action);
     return NextResponse.json({ ok: true, ...r });
   } catch (e) {
