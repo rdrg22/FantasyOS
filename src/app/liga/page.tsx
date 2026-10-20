@@ -4,6 +4,7 @@ import { isPlayed } from "@/lib/analytics/fixtures";
 import { PageHeader, Section, TeamChip } from "@/components/ui";
 import { LeagueResults, type MatchdayResults } from "@/components/league/LeagueResults";
 import { CardsBoard, type CardRow } from "@/components/league/CardsBoard";
+import { InjuryBoard, type InjuryRow } from "@/components/league/InjuryBoard";
 import { IdealEleven, type IdealElevenProps } from "@/components/league/IdealEleven";
 import { idealEleven, type PointsEntry } from "@/lib/analytics/ideal";
 import type { PitchSlot } from "@/components/Pitch";
@@ -40,6 +41,18 @@ export default async function LigaPage({ searchParams }: { searchParams: Promise
       mine: mine.has(a.player.id),
     }));
   const table = tableView(s.calendar.table);
+  const injuries: InjuryRow[] = [...s.analyses.values()]
+    .filter((a) => a.player.status === "lesionado" || a.player.status === "duda")
+    .map((a) => ({
+      id: a.player.id,
+      name: a.player.name,
+      teamId: a.player.teamId,
+      position: a.player.position,
+      kind: a.player.status === "duda" || /molestia/i.test(a.player.statusNote ?? "") ? "molestias" : "lesion",
+      note: a.player.statusNote,
+      value: a.trend.value,
+      mine: mine.has(a.player.id),
+    }));
 
   // Once ideal: jornada pedida (?j=) o la última con puntos guardados.
   let ideal: IdealElevenProps | null = null;
@@ -82,7 +95,7 @@ export default async function LigaPage({ searchParams }: { searchParams: Promise
       <PageHeader
         eyebrow="LaLiga"
         title="Liga"
-        subtitle="Resultados por jornada, once ideal, clasificación y tarjetas de los jugadores. Se actualiza solo varias veces al día."
+        subtitle="Resultados por jornada, once ideal, clasificación, bajas y tarjetas de los jugadores. Se actualiza solo varias veces al día."
       />
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <div className="space-y-6">
@@ -117,6 +130,7 @@ export default async function LigaPage({ searchParams }: { searchParams: Promise
               </tbody>
             </table>
           </Section>
+          <InjuryBoard rows={injuries} />
           <CardsBoard rows={cards} />
         </div>
       </div>
