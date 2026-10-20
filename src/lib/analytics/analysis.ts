@@ -2,6 +2,14 @@ import type { Fixture, Player, PriceSnapshot, ProbableLineupEntry } from "../dom
 import { computeTrend, momentumScore, type Trend } from "./trends";
 import { calendarState, fixtureFactor, opponentDifficulty, opponentIn, type CalendarState } from "./fixtures";
 
+export interface UpcomingMatch {
+  matchday: number;
+  opponentId: string | null;
+  home: boolean | null;
+  difficulty: number | null;
+  factor: number;
+}
+
 export type ConfidenceLevel = "baja" | "media" | "alta";
 
 export interface PlayerAnalysis {
@@ -15,6 +23,10 @@ export interface PlayerAnalysis {
   basePoints: number;
   basePointsSource: "temporada+reciente" | "temporada" | "reciente" | "supuesto";
   xp: number;
+  /** Puntos esperados sumando las dos próximas jornadas */
+  xp2: number;
+  /** Rivales de las dos próximas jornadas */
+  upcoming: UpcomingMatch[];
   opponentId: string | null;
   home: boolean | null;
   kickoff: string | null;
@@ -126,6 +138,21 @@ export function analyzePlayer(player: Player, snaps: PriceSnapshot[] | undefined
 
   const xp = Math.max(0, basePoints * pPlay * factor);
 
+  // ── Dos próximas jornadas ──
+  const upcoming: UpcomingMatch[] = [];
+  if (md) upcoming.push({ matchday: md.matchday, opponentId, home, difficulty, factor });
+  const md2 = ctx.calendar.following;
+  let xp2 = xp;
+  if (md2) {
+    const f2 = opponentIn(player.teamId, md2);
+    const opp2 = f2?.opponentId ?? null;
+    const factor2 = fixtureFactor(opp2, f2?.home ?? null, ctx.calendar.table, ctx.calendar.leagueAvgPpg);
+    upcoming.push({ matchday: md2.matchday, opponentId: opp2, home: f2?.home ?? null, difficulty: opponentDifficulty(opp2, ctx.calendar.table), factor: factor2 });
+    // Para la segunda jornada no hay alineación probable: se usa la probabilidad base (sin el "sin partido" de esta jornada).
+    const p2 = player.status === "lesionado" || player.status === "sancionado" ? 0 : noMatch ? Math.min(1, player.startProb ?? 0.5) : pPlay;
+    xp2 = xp + (f2 ? Math.max(0, basePoints * p2 * factor2) : 0);
+  }
+
   // ── Puntuaciones ──
   const playBoost = pPlay >= 0.7 ? 10 : pPlay < 0.3 ? -15 : 0;
   const valueScore = clamp(50 + momentum * 0.45 + playBoost, 0, 100);
@@ -145,6 +172,8 @@ export function analyzePlayer(player: Player, snaps: PriceSnapshot[] | undefined
     basePoints,
     basePointsSource,
     xp,
+    xp2,
+    upcoming,
     opponentId,
     home,
     kickoff: fromCal?.fixture.kickoff ?? null,

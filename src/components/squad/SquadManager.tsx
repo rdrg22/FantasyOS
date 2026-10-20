@@ -132,7 +132,7 @@ export function SquadManager({
   }
 
   return (
-    <div className="grid gap-6 2xl:grid-cols-[minmax(0,560px)_minmax(0,1fr)] xl:grid-cols-[minmax(0,500px)_minmax(0,1fr)]">
+    <div className="grid grid-cols-1 gap-6 2xl:grid-cols-[minmax(0,560px)_minmax(0,1fr)] xl:grid-cols-[minmax(0,500px)_minmax(0,1fr)]">
       {/* ── Campo ── */}
       <section className="panel p-4">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">

@@ -7,6 +7,9 @@ const GLOSSARY: [string, string][] = [
   ["Tendencia y aceleración", "Cómo se mueve el valor en el último mercado, 3 y 7 días. «Acelera» significa que la subida o la bajada va a más; «frena», que pierde fuerza; «giro», cambio de dirección."],
   ["Alineación probable", "Estimación de la fuente (o tuya) de quién será titular. No es la alineación oficial, que solo se conoce poco antes del partido."],
   ["Para revalorizar / para puntuar", "Una compra «para revalorizar» busca ganar dinero porque el precio sube; «para puntuar», mejorar tu once."],
+  ["J10 · J11 (rivales)", "Los dos próximos rivales de cada jugador. Verde: asequible; ámbar: medio; rojo: difícil. «@» significa que juega fuera."],
+  ["Puja recomendada y máxima", "Para un jugador de tu mercado: la recomendada es lo que conviene ofrecer (cerca del mínimo si nadie más puja; más alta si marcas «Alguien más ha pujado»). La máxima es el límite: por encima, el fichaje deja de compensar. Para puntuar, el límite sube cuanto más mejora tu once en las 2 próximas jornadas; para ganar dinero, solo compensa pagar de más si se espera que su precio suba en los próximos días. Las cifras acaban en 137 € para ganar a quien puja números redondos."],
+  ["Añadir a la pantalla de inicio", "En el móvil, abre la web en Safari (iPhone) o Chrome (Android) → Compartir / menú → «Añadir a pantalla de inicio». Se abrirá a pantalla completa, como una app."],
 ];
 
 const METHOD: [string, string][] = [
@@ -31,7 +34,7 @@ export default function AyudaPage() {
   return (
     <>
       <PageHeader eyebrow="Ayuda" title="Cómo funciona Fantasy OS" />
-      <div className="grid gap-6 xl:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         <Section title="Glosario">
           <dl className="space-y-3 text-[13px]">
             {GLOSSARY.map(([k, v]) => (

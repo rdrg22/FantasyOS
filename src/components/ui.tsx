@@ -15,7 +15,7 @@ export function InfoTip({ children, align = "left" }: { children: ReactNode; ali
       </button>
       <span
         role="tooltip"
-        className={`pointer-events-none invisible absolute top-6 z-50 w-72 rounded-lg border border-ink-600 bg-ink-850 px-3 py-2 text-left text-[12.5px] font-normal normal-case leading-snug tracking-normal text-fg/90 opacity-0 shadow-2xl transition-opacity group-focus-within:visible group-focus-within:opacity-100 group-hover:visible group-hover:opacity-100 ${align === "right" ? "right-0" : "left-0"}`}
+        className={`pointer-events-none absolute top-6 z-50 hidden w-[min(18rem,calc(100vw-2.5rem))] rounded-lg border border-ink-600 bg-ink-850 px-3 py-2 text-left text-[12.5px] font-normal normal-case leading-snug tracking-normal text-fg/90 shadow-2xl group-focus-within:block group-hover:block ${align === "right" ? "right-0" : "-left-24 sm:left-0"}`}
       >
         {children}
       </span>
@@ -25,10 +25,10 @@ export function InfoTip({ children, align = "left" }: { children: ReactNode; ali
 
 export function PageHeader({ eyebrow, title, subtitle, actions }: { eyebrow: string; title: string; subtitle?: ReactNode; actions?: ReactNode }) {
   return (
-    <header className="mb-6 flex flex-wrap items-end justify-between gap-4 pl-10 lg:pl-0">
+    <header className="mb-5 flex flex-wrap items-end justify-between gap-3 sm:mb-6 sm:gap-4">
       <div>
         <div className="eyebrow mb-1.5 text-cyan/80">{eyebrow}</div>
-        <h1 className="flex items-center gap-2 font-display text-[28px] font-semibold leading-none tracking-tight">
+        <h1 className="flex items-center gap-2 font-display text-[24px] font-semibold leading-none tracking-tight sm:text-[28px]">
           {title}
           {subtitle && <InfoTip>{subtitle}</InfoTip>}
         </h1>

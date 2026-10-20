@@ -3,6 +3,7 @@ import { POSITION_LABEL } from "../domain/types";
 import { fmtMoney, fmtPct } from "../domain/money";
 import type { ConfidenceLevel, PlayerAnalysis } from "./analysis";
 import type { LineupComparison, LineupRecommendation } from "./lineup";
+import { computeBid, type BidAdvice, type BidContext } from "./bidding";
 
 export type Action = "COMPRAR" | "VENDER" | "MANTENER" | "VIGILAR" | "ALINEAR" | "SALDO";
 export type Intent = "revalorizacion" | "puntos" | "mixta";
@@ -25,6 +26,8 @@ export interface Recommendation {
   replaces: { playerId: string; playerName: string; saleValue: number } | null;
   confidence: { level: ConfidenceLevel; used: string[]; missing: string[] };
   inMyMarket: boolean | null;
+  /** Asesor de puja (solo fichajes) */
+  bid?: BidAdvice | null;
 }
 
 export interface EngineInput {
@@ -34,6 +37,16 @@ export interface EngineInput {
   listings: MarketListing[];
   lineupRec: LineupRecommendation;
   lineupCmp: LineupComparison | null;
+  bidContext?: BidContext;
+}
+
+/** Puntos esperados extra en las 2 próximas jornadas frente al titular más flojo de su línea en tu once recomendado. */
+export function pointsGain2(a: PlayerAnalysis, lineupRec: LineupRecommendation, analyses: Map<string, PlayerAnalysis>): number {
+  const slots = lineupRec.slots.filter((s) => s.position === a.player.position);
+  if (slots.length === 0) return 0;
+  const taken = slots.filter((s) => s.playerId).map((s) => analyses.get(s.playerId!)?.xp2 ?? 0);
+  if (taken.length < slots.length || taken.length === 0) return a.xp2;
+  return a.xp2 - Math.min(...taken);
 }
 
 // Mínimos por línea para poder alinear al menos una formación válida.
@@ -337,6 +350,22 @@ export function generateRecommendations(input: EngineInput): Recommendation[] {
       confidence: { level: conf, used: [...a.confidence.used, ...(fromListings ? ["tu mercado de hoy"] : [])], missing: [...a.confidence.missing, ...(fromListings ? [] : ["mercado del día"])] },
       inMyMarket: fromListings ? true : null,
     };
+    if (input.bidContext) {
+      rec.bid = computeBid(
+        {
+          value: a.trend.value ?? cost,
+          floor: cost,
+          dailyRate: a.trend.dailyRate,
+          difficulties: a.upcoming.map((u) => u.difficulty),
+          pointsGain2: pointsGain2(a, lineupRec, analyses),
+          pPlay: a.pPlay,
+          status: p.status,
+          confidence: a.confidence.level,
+        },
+        input.bidContext,
+        intent === "revalorizacion" ? "dinero" : "puntos",
+      );
+    }
     (feasible ? buyRecs : watchRecs).push(rec);
   }
 

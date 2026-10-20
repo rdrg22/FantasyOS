@@ -13,6 +13,8 @@ import { Sparkline } from "../Sparkline";
 import { PlayerDetail } from "./PlayerDetail";
 import { DailyMarket } from "./DailyMarket";
 import { useAction } from "../useAction";
+import { NextFixtures } from "../NextFixtures";
+import type { BidContext } from "@/lib/analytics/bidding";
 
 type SortKey = "opportunity" | "value" | "change1" | "pct1" | "pct7" | "points" | "avg" | "pPlay" | "xp" | "name";
 
@@ -31,6 +33,7 @@ export function MarketView({
   listingsDate,
   today,
   budget,
+  bidContext,
   snapshotDays,
 }: {
   players: PlayerView[];
@@ -39,6 +42,7 @@ export function MarketView({
   listingsDate: string | null;
   today: string;
   budget: number;
+  bidContext: BidContext;
   snapshotDays: number;
 }) {
   const [q, setQ] = useState("");
@@ -182,7 +186,7 @@ export function MarketView({
           <Empty title="No hay jugadores todavía">Sincroniza los precios (botón superior) o crea jugadores a mano desde «Mi equipo».</Empty>
         ) : (
           <div className="-mx-4 max-h-[70vh] overflow-auto">
-            <table className={`table-compact w-full ${more ? "min-w-[1180px]" : "min-w-[760px]"}`}>
+            <table className={`table-compact w-full ${more ? "min-w-[1180px]" : "min-w-[480px] sm:min-w-[760px]"}`}>
               <thead>
                 <tr>
                   {th("name", "Jugador")}
@@ -190,10 +194,10 @@ export function MarketView({
                   {more && <th className="!text-right">Anterior</th>}
                   {th("change1", "Var.", "!text-right")}
                   {more && th("pct7", "7 días", "!text-right")}
-                  <th>Tendencia</th>
+                  <th className="hidden sm:table-cell">Tendencia</th>
                   {more && th("points", "Pts", "!text-right")}
                   {more && th("avg", "Media", "!text-right")}
-                  {th("pPlay", "Juega")}
+                  {th("pPlay", "Juega", "hidden sm:table-cell")}
                   {more && <th>Estado</th>}
                   {more && <th>Rival</th>}
                   {th("xp", "Pts esp.", "!text-right")}
@@ -218,7 +222,7 @@ export function MarketView({
                               </span>
                             )}
                           </div>
-                          <TeamChip teamId={p.teamId} short />
+                          <div className="mt-0.5 flex items-center gap-2"><TeamChip teamId={p.teamId} short /><NextFixtures upcoming={p.upcoming} size="xs" /></div>
                         </div>
                       </div>
                     </td>
@@ -229,7 +233,7 @@ export function MarketView({
                       <Delta pct={p.pct1} size="xs" />
                     </td>
                     {more && <td className="text-right"><Delta pct={p.pct7} size="xs" /></td>}
-                    <td>
+                    <td className="hidden sm:table-cell">
                       <div className="flex items-center gap-2">
                         <Sparkline data={p.series} width={70} height={24} />
                         {p.accelLabel && <span className={`text-[11px] ${p.accelLabel.includes("positiva") || (p.accelLabel === "acelera" && p.direction === "sube") ? "text-up" : p.accelLabel.includes("negativa") || (p.accelLabel === "acelera" && p.direction === "baja") ? "text-down" : "text-muted"}`}>{ACCEL[p.accelLabel]}</span>}
@@ -237,7 +241,7 @@ export function MarketView({
                     </td>
                     {more && <td className="num text-right">{p.pointsTotal ?? "—"}</td>}
                     {more && <td className="num text-right text-muted">{p.pointsAvg?.toFixed(1) ?? "—"}</td>}
-                    <td><ProbBar p={p.pPlaySource === "supuesto" ? null : p.pPlay} source={p.pPlaySource} /></td>
+                    <td className="hidden sm:table-cell"><ProbBar p={p.pPlaySource === "supuesto" ? null : p.pPlay} source={p.pPlaySource} /></td>
                     {more && <td><StatusBadge status={p.status} note={p.statusNote} /></td>}
                     {more && <td>
                       {p.opponentId ? (
@@ -266,7 +270,7 @@ export function MarketView({
         )}
       </section>
 
-      {detail && <PlayerDetail p={detail} onClose={() => setDetail(null)} owned={mine.has(detail.id)} listing={listed.get(detail.id) ?? null} today={today} budget={budget} />}
+      {detail && <PlayerDetail p={detail} onClose={() => setDetail(null)} owned={mine.has(detail.id)} listing={listed.get(detail.id) ?? null} today={today} budget={budget} bidContext={bidContext} />}
     </div>
   );
 }

@@ -82,7 +82,7 @@ export default async function Dashboard() {
         </div>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
         <Section
           title="Tus 3 decisiones clave"
           actions={
@@ -98,7 +98,7 @@ export default async function Dashboard() {
           ) : (
             <div className="space-y-2.5">
               {top3.map((r, i) => (
-                <RecommendationCard key={r.id} rec={r} rank={i + 1} teamId={teamOf(r.playerId)} ownsPlayer={!!r.playerId && ownIds.has(r.playerId)} />
+                <RecommendationCard key={r.id} rec={r} rank={i + 1} teamId={teamOf(r.playerId)} ownsPlayer={!!r.playerId && ownIds.has(r.playerId)} upcoming={r.playerId ? s.analyses.get(r.playerId)?.upcoming : undefined} />
               ))}
             </div>
           )}

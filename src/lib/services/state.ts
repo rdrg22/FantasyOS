@@ -4,7 +4,8 @@ import { calendarState } from "../analytics/fixtures";
 import { addDays } from "../domain/time";
 import { analyzePlayer, buildContext, type PlayerAnalysis } from "../analytics/analysis";
 import { compareLineup, recommendLineup, type LineupComparison, type LineupRecommendation } from "../analytics/lineup";
-import { generateRecommendations, type Recommendation } from "../analytics/recommendations";
+import { generateRecommendations, pointsGain2, type Recommendation } from "../analytics/recommendations";
+import { euroPerPoint, type BidContext } from "../analytics/bidding";
 import type { CalendarState, MatchdayInfo, TeamForm } from "../analytics/fixtures";
 import { pnl, type PnL } from "../domain/money";
 import { formationSlots } from "../domain/formations";
@@ -32,6 +33,10 @@ export interface FullState {
   lineupRec: LineupRecommendation;
   lineupCmp: LineupComparison;
   recommendations: Recommendation[];
+  /** Contexto del asesor de pujas (presupuesto, ventas posibles, valor de un punto) */
+  bidContext: BidContext;
+  /** Puntos extra en 2 jornadas frente a tu titular más flojo de cada línea */
+  gain2: Map<string, number>;
   valueHistory: SquadValuePoint[];
   syncLog: SyncLogEntry[];
   dataFreshness: { marketUpdatedAt: string | null; fixturesUpdatedAt: string | null; lineupsUpdatedAt: string | null; snapshotDays: number; playerCount: number };
@@ -92,7 +97,16 @@ export async function buildState(repo: Store, workspace: Workspace, now = new Da
   const lineupCmp = compareLineup(lineup, analyses, lineupRec, new Set(squadEntries.map((s) => s.playerId)));
   const listingsDate = allListings[0]?.date ?? null;
   const listings = allListings.filter((l) => l.date === listingsDate);
-  const recommendations = generateRecommendations({ analyses, squad: squadEntries, settings, listings, lineupRec, lineupCmp });
+  const remaining = Math.max(1, 38 - (ctx.calendar.next?.matchday ?? 38) + 1);
+  const eurPerPoint = euroPerPoint([...analyses.values()].map((a) => ({ value: a.trend.value, pointsAvg: a.player.pointsAvg, pPlay: a.pPlay })), remaining);
+  const starters = new Set(lineupRec.slots.map((sl) => sl.playerId).filter(Boolean) as string[]);
+  const saleOptions = [...squad]
+    .sort((x, y) => Number(starters.has(x.entry.playerId)) - Number(starters.has(y.entry.playerId)) || x.analysis.xp - y.analysis.xp)
+    .map((r) => ({ playerId: r.entry.playerId, name: r.analysis.player.name, value: r.value }));
+  const bidContext: BidContext = { eurPerPoint, budget: settings.budget, saleOptions };
+  const gain2 = new Map<string, number>();
+  for (const a of analyses.values()) gain2.set(a.player.id, pointsGain2(a, lineupRec, analyses));
+  const recommendations = generateRecommendations({ analyses, squad: squadEntries, settings, listings, lineupRec, lineupCmp, bidContext });
 
   let bought = 0, sold = 0, adjustments = 0, realizedProfit = 0;
   for (const t of transactions) {
@@ -119,6 +133,8 @@ export async function buildState(repo: Store, workspace: Workspace, now = new Da
     lineupRec,
     lineupCmp,
     recommendations,
+    bidContext,
+    gain2,
     valueHistory,
     syncLog,
     dataFreshness: {
@@ -162,6 +178,10 @@ export interface PlayerView {
   played5: number | null;
   lastPoints: number | null;
   xp: number;
+  xp2: number;
+  gain2: number;
+  dailyRate: number | null;
+  upcoming: PlayerAnalysis["upcoming"];
   opponentId: string | null;
   home: boolean | null;
   difficulty: number | null;
@@ -175,7 +195,7 @@ export interface PlayerView {
   lineupRole: PlayerAnalysis["lineupRole"];
 }
 
-export function toView(a: PlayerAnalysis): PlayerView {
+export function toView(a: PlayerAnalysis, gain2?: number): PlayerView {
   const p = a.player;
   const t = a.trend;
   return {
@@ -206,6 +226,10 @@ export function toView(a: PlayerAnalysis): PlayerView {
     played5: p.played5,
     lastPoints: p.lastPoints,
     xp: Math.round(a.xp * 10) / 10,
+    xp2: Math.round(a.xp2 * 10) / 10,
+    gain2: Math.round((gain2 ?? 0) * 10) / 10,
+    dailyRate: t.dailyRate,
+    upcoming: a.upcoming,
     opponentId: a.opponentId,
     home: a.home,
     difficulty: a.difficulty,

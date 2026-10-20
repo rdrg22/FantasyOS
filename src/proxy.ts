@@ -24,7 +24,9 @@ export async function proxy(request: NextRequest) {
   });
   const { data } = await supabase.auth.getUser();
   const path = request.nextUrl.pathname;
-  const isPublic = path === "/login" || path.startsWith("/api/cron") || path.startsWith("/api/auth");
+  const isPublic =
+    path === "/login" || path.startsWith("/api/cron") || path.startsWith("/api/auth") ||
+    path === "/manifest.webmanifest" || path.startsWith("/icon") || path.startsWith("/apple-icon");
   if (!data.user && !isPublic) {
     if (path.startsWith("/api/")) return NextResponse.json({ ok: false, error: "Sesión caducada: vuelve a iniciar sesión." }, { status: 401 });
     const to = request.nextUrl.clone();

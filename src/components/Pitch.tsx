@@ -50,7 +50,7 @@ export function Pitch({
         {ROW_ORDER.map((pos) => {
           const row = slots.filter((s) => s.position === pos);
           return (
-            <div key={pos} className="flex items-start justify-center gap-2 sm:gap-4">
+            <div key={pos} className="flex items-start justify-center gap-1.5 sm:gap-4">
               {row.map((s) => (
                 <SlotCard
                   key={s.slot}
@@ -113,7 +113,7 @@ function SlotCard({
         {...dnd}
         disabled={readOnly}
         onClick={onClick}
-        className={`flex w-[78px] flex-col items-center gap-1 sm:w-[96px] ${readOnly ? "cursor-default" : ""}`}
+        className={`flex w-[60px] flex-col items-center gap-1 min-[400px]:w-[68px] sm:w-[96px] ${readOnly ? "cursor-default" : ""}`}
         title={readOnly ? "Sin jugador" : "Selecciona y elige un jugador de la lista"}
       >
         <span className={`flex h-12 w-12 items-center justify-center rounded-full border-2 border-dashed ${selected ? "border-cyan bg-cyan/15 text-cyan" : "border-white/30 text-white/50"}`}>
@@ -136,7 +136,7 @@ function SlotCard({
         e.dataTransfer.setData("text/slot", s.slot);
       }}
       onClick={onClick}
-      className={`group relative w-[78px] cursor-pointer select-none sm:w-[104px] ${readOnly ? "cursor-default" : "active:scale-[0.98]"}`}
+      className={`group relative w-[60px] cursor-pointer select-none min-[400px]:w-[68px] sm:w-[104px] ${readOnly ? "cursor-default" : "active:scale-[0.98]"}`}
       title={p.alert ?? `${p.name} · ${p.xp.toFixed(1)} pts esperados · ${pct}% de jugar`}
     >
       <div
@@ -146,7 +146,7 @@ function SlotCard({
       >
         <div className="h-1" style={{ background: team?.color ?? "#2c4268" }} />
         <div className="px-1.5 pb-1.5 pt-1">
-          <div className="truncate text-center text-[11.5px] font-semibold leading-tight sm:text-[12.5px]">{p.name}</div>
+          <div className="truncate text-center text-[10.5px] font-semibold leading-tight sm:text-[12.5px]">{p.name}</div>
           <div className="mt-0.5 flex items-center justify-between font-mono text-[9.5px] text-white/60">
             <span>{team?.short ?? "—"}</span>
             <span className="text-gold">{p.xp.toFixed(1)}</span>

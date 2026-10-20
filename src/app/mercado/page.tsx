@@ -7,7 +7,7 @@ import { MarketView } from "@/components/market/MarketView";
 export default async function MercadoPage() {
   const { repo, workspace } = await getRepo();
   const s = await buildState(repo, workspace);
-  const players = [...s.analyses.values()].map(toView);
+  const players = [...s.analyses.values()].map((a) => toView(a, s.gain2.get(a.player.id)));
   const squadIds = s.squad.map((r) => r.entry.playerId);
   return (
     <>
@@ -32,6 +32,7 @@ export default async function MercadoPage() {
         listingsDate={s.listingsDate}
         today={s.today}
         budget={s.settings.budget}
+        bidContext={s.bidContext}
         snapshotDays={s.dataFreshness.snapshotDays}
       />
     </>

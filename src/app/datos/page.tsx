@@ -24,7 +24,7 @@ export default async function DatosPage() {
           </>
         }
       />
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
         <div className="space-y-6">
           <Section
             eyebrow={workspace === "demo" ? "Modo demostración" : `Temporada ${currentSeason()}`}

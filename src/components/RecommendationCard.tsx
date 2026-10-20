@@ -6,6 +6,8 @@ import type { Recommendation } from "@/lib/analytics/recommendations";
 import { fmtMoney } from "@/lib/domain/money";
 import { ActionTag, ConfidencePill, PosBadge, TeamChip } from "./ui";
 import { TradeButton } from "./TradeButton";
+import { BidAdvisor } from "./BidAdvisor";
+import { NextFixtures, type UpcomingView } from "./NextFixtures";
 
 const INTENT: Record<string, { label: string; icon: typeof TrendingUp; cls: string }> = {
   revalorizacion: { label: "Para revalorizar", icon: TrendingUp, cls: "text-up" },
@@ -20,6 +22,7 @@ export function RecommendationCard({
   defaultOpen = false,
   compact = false,
   ownsPlayer = false,
+  upcoming,
 }: {
   rec: Recommendation;
   rank?: number;
@@ -27,6 +30,7 @@ export function RecommendationCard({
   defaultOpen?: boolean;
   compact?: boolean;
   ownsPlayer?: boolean;
+  upcoming?: UpcomingView[];
 }) {
   const [open, setOpen] = useState(defaultOpen);
   const [detail, setDetail] = useState(false);
@@ -43,6 +47,7 @@ export function RecommendationCard({
             <ActionTag action={rec.action} />
             {rec.position && <PosBadge pos={rec.position} />}
             {teamId !== undefined && <TeamChip teamId={teamId} short />}
+            {upcoming && <NextFixtures upcoming={upcoming} size="xs" />}
             {intent && (
               <span className={`inline-flex items-center gap-1 text-[11.5px] ${intent.cls}`}>
                 <intent.icon size={13} /> {intent.label}
@@ -88,6 +93,11 @@ export function RecommendationCard({
               </>
             )}
           </dl>
+          {rec.bid && (rec.action === "COMPRAR" || rec.action === "VIGILAR") && (
+            <div className="mt-3">
+              <BidAdvisor advice={{ [rec.bid.goal]: rec.bid }} defaultGoal={rec.bid.goal} compact />
+            </div>
+          )}
           <div className="mt-3 flex flex-wrap items-center gap-2">
           {rec.playerId && (rec.action === "COMPRAR" || rec.action === "VENDER") && (
             <>

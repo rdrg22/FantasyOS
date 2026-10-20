@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { Recommendation } from "@/lib/analytics/recommendations";
 import { RecommendationCard } from "./RecommendationCard";
 import { Empty } from "./ui";
+import type { UpcomingView } from "./NextFixtures";
 
 const FILTERS = [
   ["todas", "Todas"],
@@ -14,7 +15,7 @@ const FILTERS = [
   ["ALINEAR", "Alineación"],
 ] as const;
 
-export function RecommendationList({ recs, teams, ownIds }: { recs: Recommendation[]; teams: Record<string, string | null>; ownIds: string[] }) {
+export function RecommendationList({ recs, teams, ownIds, upcoming = {} }: { recs: Recommendation[]; teams: Record<string, string | null>; ownIds: string[]; upcoming?: Record<string, UpcomingView[]> }) {
   const [filter, setFilter] = useState<(typeof FILTERS)[number][0]>("todas");
   const [intent, setIntent] = useState<"" | "revalorizacion" | "puntos" | "mixta">("");
   const own = new Set(ownIds);
@@ -47,7 +48,7 @@ export function RecommendationList({ recs, teams, ownIds }: { recs: Recommendati
       ) : (
         <div className="space-y-2.5">
           {list.map((r, i) => (
-            <RecommendationCard key={r.id} rec={r} rank={i + 1} teamId={r.playerId ? teams[r.playerId] ?? null : undefined} ownsPlayer={!!r.playerId && own.has(r.playerId)} />
+            <RecommendationCard key={r.id} rec={r} rank={i + 1} teamId={r.playerId ? teams[r.playerId] ?? null : undefined} ownsPlayer={!!r.playerId && own.has(r.playerId)} upcoming={r.playerId ? upcoming[r.playerId] : undefined} />
           ))}
         </div>
       )}

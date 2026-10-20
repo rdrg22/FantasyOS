@@ -18,6 +18,13 @@ const NAV = [
   { href: "/ayuda", label: "Ayuda", icon: HelpCircle, hint: "Glosario, metodología y fuentes" },
 ];
 
+const MOBILE = [
+  { href: "/", short: "Hoy", icon: LayoutDashboard },
+  { href: "/recomendaciones", short: "Consejos", icon: Sparkles },
+  { href: "/mercado", short: "Mercado", icon: ShoppingCart },
+  { href: "/plantilla", short: "Equipo", icon: Users },
+];
+
 export interface FreshnessInfo {
   market: string | null;
   fixtures: string | null;
@@ -94,14 +101,35 @@ export function Sidebar({ workspace, teamName, freshness, canLogout = false }: {
 
   return (
     <>
-      <button className="btn-ghost fixed left-3 top-3 z-50 lg:hidden" onClick={() => setOpen(!open)} aria-label="Menú">
-        {open ? <X size={18} /> : <Menu size={18} />}
-      </button>
+      {/* Móvil: barra inferior con las secciones más usadas; «Más» abre el menú completo */}
+      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-ink-900/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden" aria-label="Navegación principal">
+        <ul className="grid grid-cols-5">
+          {MOBILE.map((n) => {
+            const active = n.href === "/" ? path === "/" : path.startsWith(n.href);
+            const Icon = n.icon;
+            return (
+              <li key={n.href}>
+                <Link href={n.href} className={`flex flex-col items-center gap-0.5 py-2 text-[10.5px] ${active ? "text-cyan" : "text-muted"}`}>
+                  <Icon size={20} />
+                  {n.short}
+                </Link>
+              </li>
+            );
+          })}
+          <li>
+            <button onClick={() => setOpen(true)} className="flex w-full flex-col items-center gap-0.5 py-2 text-[10.5px] text-muted" aria-label="Más secciones">
+              <Menu size={20} />
+              Más
+            </button>
+          </li>
+        </ul>
+      </nav>
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-60 border-r border-line bg-ink-900/95 lg:block">{nav}</aside>
       {open && (
         <div className="fixed inset-0 z-40 lg:hidden" onClick={() => setOpen(false)}>
           <div className="absolute inset-0 bg-black/60" />
-          <aside className="absolute inset-y-0 left-0 w-64 border-r border-line bg-ink-900" onClick={(e) => e.stopPropagation()}>
+          <aside className="absolute inset-y-0 left-0 w-64 overflow-y-auto border-r border-line bg-ink-900 pt-[env(safe-area-inset-top)]" onClick={(e) => e.stopPropagation()}>
+            <button className="absolute right-3 top-3 text-dim" onClick={() => setOpen(false)} aria-label="Cerrar menú"><X size={18} /></button>
             {nav}
           </aside>
         </div>

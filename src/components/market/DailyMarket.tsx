@@ -1,16 +1,17 @@
 "use client";
 
-import { useState } from "react";
-import { FileUp, Store, Trash2, X } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
+import { FileUp, Search, Store, Trash2, X } from "lucide-react";
 import type { PlayerView } from "@/lib/services/state";
 import type { MarketListing } from "@/lib/domain/types";
 import { fmtCompact, fmtMoney } from "@/lib/domain/money";
 import { fmtDate } from "@/lib/domain/time";
 import { Delta, InfoTip, PosBadge, ScoreRing, TeamChip } from "../ui";
 import { Modal } from "../Modal";
-import { MoneyInput } from "../MoneyInput";
-import { PlayerSearch } from "../squad/AddPlayerPanel";
+import { normalizeName } from "@/lib/domain/normalize";
+import { getTeam } from "@/lib/domain/teams";
 import { useAction } from "../useAction";
+import { NextFixtures } from "../NextFixtures";
 import { useToast } from "../Toast";
 
 const TEMPLATE = "nombre;equipo;posicion;precio;vendedor\nPedri;Barcelona;MED;45000000;LaLiga\nNico Williams;Athletic;DEL;38.500.000;Mánager X\n";
@@ -30,11 +31,7 @@ export function DailyMarket({
   squadIds: string[];
   onOpen: (id: string) => void;
 }) {
-  const [adding, setAdding] = useState(false);
   const [csvOpen, setCsvOpen] = useState(false);
-  const [picked, setPicked] = useState<PlayerView | null>(null);
-  const [ask, setAsk] = useState<number | null>(null);
-  const [seller, setSeller] = useState("");
   const { run, busy } = useAction();
   const byId = new Map(players.map((p) => [p.id, p]));
   const own = new Set(squadIds);
@@ -56,7 +53,6 @@ export function DailyMarket({
           </h2>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button className="btn-ghost" onClick={() => setAdding(!adding)}>{adding ? <X size={14} /> : "+"} Añadir jugador</button>
           <button className="btn-ghost" onClick={() => setCsvOpen(true)}><FileUp size={14} /> Importar CSV</button>
           {listings.length > 0 && listingsDate && (
             <button className="btn-ghost" disabled={busy} onClick={() => confirm("¿Vaciar el mercado registrado?") && run({ type: "clearListings", date: listingsDate })}>
@@ -66,30 +62,7 @@ export function DailyMarket({
         </div>
       </div>
 
-      {adding && (
-        <div className="panel-inset mb-3 space-y-3 p-3">
-          <PlayerSearch
-            catalog={players.filter((p) => !own.has(p.id)).map((p) => ({ id: p.id, name: p.name, teamId: p.teamId, position: p.position, value: p.value, status: p.status, source: p.source }))}
-            onPick={(c) => { setPicked(byId.get(c.id) ?? null); setAsk(c.value); }}
-            placeholder="Busca el jugador que aparece en tu mercado…"
-          />
-          {picked && (
-            <form
-              className="flex flex-wrap items-end gap-2"
-              onSubmit={async (e) => {
-                e.preventDefault();
-                const r = await run({ type: "addListing", playerId: picked.id, date: today, askingPrice: ask, seller: seller || null });
-                if (r.ok) { setPicked(null); setSeller(""); }
-              }}
-            >
-              <div className="flex items-center gap-2 text-sm"><PosBadge pos={picked.position} /> <b>{picked.name}</b></div>
-              <div className="w-44"><label className="label">Precio en tu mercado</label><MoneyInput value={ask} onChange={setAsk} /></div>
-              <div className="w-40"><label className="label">Vendedor</label><input className="input" value={seller} onChange={(e) => setSeller(e.target.value)} placeholder="LaLiga / mánager" maxLength={40} /></div>
-              <button className="btn-up" disabled={busy}>Añadir</button>
-            </form>
-          )}
-        </div>
-      )}
+      <QuickAdd players={players} exclude={new Set([...own, ...(isToday ? listings.map((l) => l.playerId) : [])])} today={today} />
 
       {rows.length === 0 ? (
         <p className="rounded-lg border border-dashed border-ink-600 px-4 py-5 text-center text-[13px] text-muted">
@@ -102,14 +75,14 @@ export function DailyMarket({
               <ScoreRing score={p.opportunity} />
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5"><PosBadge pos={p.position} /><span className="truncate text-sm font-medium">{p.name}</span></div>
-                <div className="mt-0.5 flex items-center gap-2"><TeamChip teamId={p.teamId} short /><span className="truncate text-[11px] text-dim">{l.seller ?? ""}</span></div>
+                <div className="mt-0.5 flex items-center gap-2"><TeamChip teamId={p.teamId} short /><NextFixtures upcoming={p.upcoming} size="xs" /></div>
               </div>
               <div className="text-right">
                 <div className="num text-sm font-semibold" title={fmtMoney(l.askingPrice ?? p.value)}>{fmtCompact(l.askingPrice ?? p.value)}</div>
                 <Delta pct={p.pct1} size="xs" />
               </div>
               <button
-                className="text-dim opacity-0 hover:text-down group-hover:opacity-100"
+                className="text-dim hover:text-down sm:opacity-0 sm:group-hover:opacity-100"
                 title="Quitar del mercado del día"
                 onClick={(e) => { e.stopPropagation(); run({ type: "removeListing", id: l.id }); }}
               >
@@ -193,5 +166,80 @@ function CsvImport({ open, onClose, today }: { open: boolean; onClose: () => voi
         </div>
       </div>
     </Modal>
+  );
+}
+
+/**
+ * Alta rápida del mercado del día con el teclado: escribe, Intro, siguiente.
+ * El precio se rellena con el valor de mercado (se puede cambiar abriendo el jugador).
+ */
+function QuickAdd({ players, exclude, today }: { players: PlayerView[]; exclude: Set<string>; today: string }) {
+  const [q, setQ] = useState("");
+  const [hi, setHi] = useState(0);
+  const [added, setAdded] = useState<string[]>([]);
+  const input = useRef<HTMLInputElement>(null);
+  const { run, busy } = useAction();
+  const results = useMemo(() => {
+    const n = normalizeName(q);
+    if (n.length < 2) return [];
+    return players
+      .filter((p) => !exclude.has(p.id) && !added.includes(p.id))
+      .filter((p) => normalizeName(p.name).includes(n) || (p.shortName && normalizeName(p.shortName).includes(n)))
+      .sort((a, b) => Number(normalizeName(b.name).startsWith(n)) - Number(normalizeName(a.name).startsWith(n)) || (b.value ?? 0) - (a.value ?? 0))
+      .slice(0, 6);
+  }, [q, players, exclude, added]);
+
+  async function add(p: PlayerView) {
+    setQ("");
+    setHi(0);
+    setAdded((a) => [...a, p.id]);
+    input.current?.focus();
+    const r = await run({ type: "addListing", playerId: p.id, date: today, askingPrice: p.value, seller: null }, { silent: true });
+    if (!r.ok) setAdded((a) => a.filter((x) => x !== p.id));
+  }
+
+  return (
+    <div className="relative mb-3">
+      <div className="relative">
+        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-dim" />
+        <input
+          ref={input}
+          className="input !py-2.5 !pl-9 text-[15px]"
+          placeholder="Añadir al mercado de hoy: escribe un nombre y pulsa Intro"
+          value={q}
+          enterKeyHint="done"
+          autoComplete="off"
+          onChange={(e) => {
+            setQ(e.target.value);
+            setHi(0);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "ArrowDown") { e.preventDefault(); setHi((h) => Math.min(h + 1, results.length - 1)); }
+            else if (e.key === "ArrowUp") { e.preventDefault(); setHi((h) => Math.max(h - 1, 0)); }
+            else if (e.key === "Enter" && results[hi]) { e.preventDefault(); add(results[hi]); }
+            else if (e.key === "Escape") setQ("");
+          }}
+        />
+        {busy && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-dim">guardando…</span>}
+      </div>
+      {results.length > 0 && (
+        <ul className="absolute z-20 mt-1 w-full overflow-hidden rounded-lg border border-ink-600 bg-ink-850 shadow-2xl">
+          {results.map((p, i) => (
+            <li key={p.id}>
+              <button
+                className={`flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm ${i === hi ? "bg-cyan/10" : "hover:bg-ink-800"}`}
+                onMouseEnter={() => setHi(i)}
+                onClick={() => add(p)}
+              >
+                <PosBadge pos={p.position} />
+                <span className="min-w-0 flex-1 truncate">{p.name}</span>
+                <span className="text-[12px] text-muted">{getTeam(p.teamId)?.short}</span>
+                <span className="num w-16 text-right text-[13px]">{fmtCompact(p.value)}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }

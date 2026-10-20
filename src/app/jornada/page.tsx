@@ -40,7 +40,7 @@ export default async function JornadaPage() {
       {!md ? (
         <Empty title="Sin calendario">Sincroniza el calendario en «Datos y fuentes» para ver la próxima jornada.</Empty>
       ) : (
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
           <div className="space-y-3">
             <div className="flex flex-wrap items-center gap-3 text-[12.5px] text-muted">
               <span>Primer partido: <b className="text-fg">{md.firstKickoff ? fmtDateTime(md.firstKickoff) : `${fmtDate(md.firstDate)} (hora por confirmar)`}</b></span>

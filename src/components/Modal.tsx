@@ -16,7 +16,7 @@ export function Modal({ open, onClose, title, children, wide = false }: { open: 
       <div
         role="dialog"
         aria-modal
-        className={`panel animate-rise w-full ${wide ? "max-w-3xl" : "max-w-lg"} bg-ink-900 p-5 shadow-2xl`}
+        className={`panel animate-rise w-full min-w-0 ${wide ? "max-w-3xl" : "max-w-lg"} bg-ink-900 p-4 shadow-2xl sm:p-5`}
         onMouseDown={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-start justify-between gap-4">

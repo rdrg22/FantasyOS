@@ -24,6 +24,8 @@ export interface MatchdayInfo {
 export interface CalendarState {
   current: MatchdayInfo | null; // jornada en juego (empezada y no terminada)
   next: MatchdayInfo | null; // próxima jornada a preparar
+  /** La jornada siguiente a la próxima (para fichar con dos jornadas de margen) */
+  following: MatchdayInfo | null;
   /** Partidos por jugar de jornadas ya empezadas (en curso o aplazados) */
   pending: Fixture[];
   table: Map<string, TeamForm>;
@@ -80,11 +82,17 @@ export function calendarState(fixtures: Fixture[], now = new Date()): CalendarSt
   const todayStr = nowIso.slice(0, 10);
   let current: MatchdayInfo | null = null;
   let next: MatchdayInfo | null = null;
+  let following: MatchdayInfo | null = null;
   const pending: Fixture[] = [];
   for (const md of mds) {
     const info = mdInfo(md, byMd.get(md)!);
     const started = info.fixtures.some((f) => isPlayed(f) || (f.kickoff ? f.kickoff <= nowIso : f.date < todayStr));
-    if (!started) { next = info; break; }
+    if (!started) {
+      next = info;
+      const after = byMd.get(md + 1);
+      following = after ? mdInfo(md + 1, after) : null;
+      break;
+    }
     // Partidos aún por jugar de jornadas ya empezadas (en curso o aplazados).
     const open = info.fixtures.filter((f) => !isPlayed(f) && f.date >= todayStr);
     if (open.length) {
@@ -95,7 +103,7 @@ export function calendarState(fixtures: Fixture[], now = new Date()): CalendarSt
   const table = buildTable(fixtures);
   const played = [...table.values()].filter((x) => x.played > 0);
   const leagueAvgPpg = played.length ? played.reduce((a, x) => a + x.ppg, 0) / played.length : 1.35;
-  return { current, next, pending, table, leagueAvgPpg };
+  return { current, next, following, pending, table, leagueAvgPpg };
 }
 
 /** Dificultad del rival 1 (fácil) .. 5 (muy difícil), según puntos por partido. */

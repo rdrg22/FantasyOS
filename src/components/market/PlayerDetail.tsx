@@ -8,10 +8,13 @@ import { fmtMoney, fmtPct, fmtSigned } from "@/lib/domain/money";
 import { timeAgo } from "@/lib/domain/time";
 import { Modal } from "../Modal";
 import { PriceChart } from "../charts";
-import { ConfidencePill, Delta, Difficulty, PosBadge, ProbBar, ScoreRing, StatusBadge, TeamChip } from "../ui";
+import { ConfidencePill, Delta, PosBadge, ProbBar, ScoreRing, StatusBadge, TeamChip } from "../ui";
 import { TradeButton } from "../TradeButton";
 import { MoneyInput } from "../MoneyInput";
 import { useAction } from "../useAction";
+import { BidAdvisor } from "../BidAdvisor";
+import { NextFixtures } from "../NextFixtures";
+import { computeBid, type BidContext } from "@/lib/analytics/bidding";
 
 const SOURCE_LABEL: Record<string, string> = {
   futbolfantasy: "FútbolFantasy",
@@ -20,10 +23,25 @@ const SOURCE_LABEL: Record<string, string> = {
   demo: "DEMOSTRACIÓN",
 };
 
-export function PlayerDetail({ p, onClose, owned, listing, today, budget }: { p: PlayerView; onClose: () => void; owned: boolean; listing: MarketListing | null; today: string; budget: number }) {
+export function PlayerDetail({ p, onClose, owned, listing, today, budget, bidContext }: { p: PlayerView; onClose: () => void; owned: boolean; listing: MarketListing | null; today: string; budget: number; bidContext: BidContext }) {
   const [ask, setAsk] = useState<number | null>(listing?.askingPrice ?? p.value);
   const [seller, setSeller] = useState(listing?.seller ?? "");
   const { run, busy } = useAction();
+  const floor = listing?.askingPrice ?? p.value;
+  const bidInput = floor
+    ? {
+        value: p.value ?? floor,
+        floor,
+        dailyRate: p.dailyRate,
+        difficulties: p.upcoming.map((u) => u.difficulty),
+        pointsGain2: p.gain2,
+        pPlay: p.pPlay,
+        status: p.status,
+        confidence: p.confidence,
+      }
+    : null;
+  const advice = bidInput ? { puntos: computeBid(bidInput, bidContext, "puntos"), dinero: computeBid(bidInput, bidContext, "dinero") } : null;
+  const defaultGoal = p.gain2 >= 0.8 ? "puntos" : "dinero";
   const basis =
     p.trendBasis === "instantaneas" ? "precios guardados por la app (fechas reales)" : p.trendBasis === "fuente" ? "valores publicados por la fuente (N mercados atrás)" : p.trendBasis === "mixta" ? "precios propios + fuente" : "sin histórico";
 
@@ -38,7 +56,7 @@ export function PlayerDetail({ p, onClose, owned, listing, today, budget }: { p:
         <span className="text-[11.5px] text-dim">Fuente: {SOURCE_LABEL[p.source] ?? p.source} · {timeAgo(p.updatedAt)}{p.overridden.length ? ` · editado a mano: ${p.overridden.join(", ")}` : ""}</span>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-[1.4fr_1fr]">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-[1.4fr_1fr]">
         <div>
           <div className="mb-2 flex items-baseline gap-3">
             <span className="num font-display text-2xl font-semibold">{fmtMoney(p.value)}</span>
@@ -55,15 +73,21 @@ export function PlayerDetail({ p, onClose, owned, listing, today, budget }: { p:
         </div>
         <div className="space-y-2.5 text-[13px]">
           <Row k="Oportunidad" v={<span className="flex items-center gap-2"><ScoreRing score={p.opportunity} /><span className="text-[11.5px] text-muted">valor {p.valueScore} · puntos {p.pointsScore}</span></span>} />
-          <Row k="Puntos esperados" v={<span className="num font-semibold text-gold">{p.xp.toFixed(1)}</span>} />
+          <Row k="Puntos esperados" v={<span className="num font-semibold text-gold">{p.xp.toFixed(1)} <span className="font-normal text-muted">· {p.xp2.toFixed(1)} en 2 jornadas</span></span>} />
           <Row k="Puntos totales / media" v={<span className="num">{p.pointsTotal ?? "—"} · {p.pointsAvg?.toFixed(2) ?? "—"}</span>} />
           <Row k="Últimas 5 jornadas" v={<span className="num">{p.points5 ?? "—"} pts en {p.played5 ?? "—"} partidos</span>} />
           <Row k="Prob. de jugar" v={<ProbBar p={p.pPlaySource === "supuesto" ? null : p.pPlay} source={p.pPlaySource} />} />
           <Row k="Origen de la prob." v={<span className="text-muted">{{ "alineacion-probable": "alineación probable", fuente: "FútbolFantasy (mercado)", historial: "partidos recientes", estado: "estado físico", supuesto: "sin dato (se supone 50%)" }[p.pPlaySource]}</span>} />
-          <Row k="Próximo rival" v={p.opponentId ? <span className="flex items-center gap-2">{p.home ? "vs" : "@"} <TeamChip teamId={p.opponentId} /> <Difficulty d={p.difficulty} /></span> : <span className="text-dim">—</span>} />
+          <Row k="Próximos rivales" v={p.upcoming.length ? <NextFixtures upcoming={p.upcoming} /> : <span className="text-dim">—</span>} />
           {p.lineupRole && <Row k="Alineación probable" v={<span className="capitalize">{p.lineupRole}</span>} />}
         </div>
       </div>
+
+      {!owned && advice && (
+        <div className="mt-5">
+          <BidAdvisor advice={advice} defaultGoal={defaultGoal} />
+        </div>
+      )}
 
       <div className="mt-5 grid gap-3 border-t border-line pt-4 md:grid-cols-2">
         {!owned ? (

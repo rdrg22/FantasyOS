@@ -8,7 +8,7 @@ export default async function PlantillaPage() {
   const { repo, workspace } = await getRepo();
   const s = await buildState(repo, workspace);
   const rows: SquadRowView[] = s.squad.map((r) => ({
-    player: toView(r.analysis),
+    player: toView(r.analysis, s.gain2.get(r.entry.playerId)),
     purchasePrice: r.entry.purchasePrice,
     purchaseDate: r.entry.purchaseDate,
     notes: r.entry.notes,

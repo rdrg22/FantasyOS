@@ -8,7 +8,7 @@ import { InfoTip } from "./ui";
 export function LineupBoard({ recSlots, curSlots, changedSlots, delta }: { recSlots: PitchSlot[]; curSlots: PitchSlot[]; changedSlots: string[]; delta: number }) {
   const { run, busy } = useAction();
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
       <section className="panel p-4">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div>

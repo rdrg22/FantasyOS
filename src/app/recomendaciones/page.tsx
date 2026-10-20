@@ -9,7 +9,13 @@ export default async function RecomendacionesPage() {
   const { repo, workspace } = await getRepo();
   const s = await buildState(repo, workspace);
   const teams: Record<string, string | null> = {};
-  for (const r of s.recommendations) if (r.playerId) teams[r.playerId] = s.analyses.get(r.playerId)?.player.teamId ?? null;
+  const upcoming: Record<string, NonNullable<ReturnType<typeof s.analyses.get>>["upcoming"]> = {};
+  for (const r of s.recommendations) {
+    if (!r.playerId) continue;
+    const a = s.analyses.get(r.playerId);
+    teams[r.playerId] = a?.player.teamId ?? null;
+    if (a) upcoming[r.playerId] = a.upcoming;
+  }
   return (
     <>
       <PageHeader
@@ -23,7 +29,7 @@ export default async function RecomendacionesPage() {
           </>
         }
       />
-      <RecommendationList recs={s.recommendations} teams={teams} ownIds={s.squad.map((r) => r.entry.playerId)} />
+      <RecommendationList recs={s.recommendations} teams={teams} ownIds={s.squad.map((r) => r.entry.playerId)} upcoming={upcoming} />
     </>
   );
 }
