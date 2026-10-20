@@ -288,7 +288,7 @@ export function generateRecommendations(input: EngineInput): Recommendation[] {
       if (acc) reasons.push(`Aceleración: ${acc}.`);
       if (a.trend.streakDays != null && a.trend.streakDays > 0) reasons.push(`Lleva ${a.trend.streakDays} días de racha alcista según la fuente.`);
       const est = Math.round(cost * ((a.trend.dailyRate ?? 0) / 100) * 3 * 0.6);
-      if (est > 0) benefits.push(`Revalorización estimada en 3 días: ~${fmtMoney(est)} (si la tendencia continúa; no garantizada).`);
+      if (est > 0) benefits.push(`Revalorización estimada en 3 días: ≈ ${fmtMoney(est)} (si la tendencia continúa; no garantizada).`);
     }
     if (intent !== "revalorizacion") {
       reasons.push(`${a.xp.toFixed(1)} pts esperados la próxima jornada (media ${a.basePoints.toFixed(1)} pts/partido, ${Math.round(a.pPlay * 100)}% de jugar).`);

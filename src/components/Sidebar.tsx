@@ -18,10 +18,24 @@ const NAV = [
   { href: "/ayuda", label: "Ayuda", icon: HelpCircle, hint: "Glosario, metodología y fuentes" },
 ];
 
-export function Sidebar({ workspace, teamName, lastMarketSync, canLogout = false }: { workspace: "real" | "demo"; teamName: string; lastMarketSync: string | null; canLogout?: boolean }) {
+export interface FreshnessInfo {
+  market: string | null;
+  fixtures: string | null;
+  lineups: string | null;
+}
+
+export function Sidebar({ workspace, teamName, freshness, canLogout = false }: { workspace: "real" | "demo"; teamName: string; freshness: FreshnessInfo; canLogout?: boolean }) {
   const path = usePathname();
   const [open, setOpen] = useState(false);
-  const stale = !lastMarketSync || Date.now() - Date.parse(lastMarketSync) > 26 * 3600 * 1000;
+  const lastMarketSync = freshness.market;
+  const old = (at: string | null, hours: number) => !at || Date.now() - Date.parse(at) > hours * 3600 * 1000;
+  const stale = old(freshness.market, 26);
+  const anyStale = stale || old(freshness.fixtures, 72) || old(freshness.lineups, 12);
+  const detail = [
+    `Precios y puntos: ${freshness.market ? timeAgo(freshness.market) : "sin sincronizar"}`,
+    `Calendario: ${freshness.fixtures ? timeAgo(freshness.fixtures) : "sin sincronizar"}`,
+    `Alineaciones: ${freshness.lineups ? timeAgo(freshness.lineups) : "sin sincronizar"}`,
+  ].join("\n");
 
   const nav = (
     <nav className="flex h-full flex-col">
@@ -61,10 +75,10 @@ export function Sidebar({ workspace, teamName, lastMarketSync, canLogout = false
 
       <div className="mt-auto space-y-3 p-4">
         <WorkspaceSwitch workspace={workspace} />
-        <Link href="/datos" className="panel-inset flex items-center gap-2 px-3 py-2 text-[11.5px]" onClick={() => setOpen(false)}>
-          <Activity size={14} className={workspace === "demo" ? "text-gold" : stale ? "text-down" : "text-up"} />
+        <Link href="/datos" title={workspace === "demo" ? undefined : detail} className="panel-inset flex items-center gap-2 px-3 py-2 text-[11.5px]" onClick={() => setOpen(false)}>
+          <Activity size={14} className={workspace === "demo" ? "text-gold" : stale ? "text-down" : anyStale ? "text-gold" : "text-up"} />
           <span className="text-muted">
-            {workspace === "demo" ? "Datos de demostración" : lastMarketSync ? <>Mercado: {timeAgo(lastMarketSync)}</> : "Mercado sin sincronizar"}
+            {workspace === "demo" ? "Datos de demostración" : lastMarketSync ? <>Datos: {timeAgo(lastMarketSync)}</> : "Datos sin sincronizar"}
           </span>
         </Link>
         {canLogout && (

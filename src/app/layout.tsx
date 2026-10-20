@@ -30,10 +30,15 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   const workspace = await getWorkspace();
   const repo = await storeFor(workspace, userId);
-  const [settings, last] = await Promise.all([repo.getSettings(), repo.lastSync("futbolfantasy", "market")]);
+  const [settings, market, fixtures, lineups] = await Promise.all([
+    repo.getSettings(),
+    repo.lastSync("futbolfantasy", "market"),
+    repo.lastSync("calendario", "fixtures"),
+    repo.lastSync("futbolfantasy", "lineups"),
+  ]);
   return shell(
     <div className="flex min-h-screen">
-      <Sidebar workspace={workspace} teamName={settings.teamName} lastMarketSync={last?.finishedAt ?? null} canLogout={supabaseEnabled()} />
+      <Sidebar workspace={workspace} teamName={settings.teamName} freshness={{ market: market?.finishedAt ?? null, fixtures: fixtures?.finishedAt ?? null, lineups: lineups?.finishedAt ?? null }} canLogout={supabaseEnabled()} />
       <main className="min-w-0 flex-1 lg:pl-60">
         {workspace === "demo" && (
           <div className="sticky top-0 z-30 border-b border-gold/30 bg-gold/10 px-6 py-1.5 text-center font-mono text-[11px] uppercase tracking-[0.2em] text-gold backdrop-blur">

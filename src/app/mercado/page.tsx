@@ -1,6 +1,6 @@
 import { getRepo } from "@/lib/services/context";
 import { buildState, toView } from "@/lib/services/state";
-import { Freshness, PageHeader } from "@/components/ui";
+import { PageHeader } from "@/components/ui";
 import { SyncButton } from "@/components/SyncButton";
 import { MarketView } from "@/components/market/MarketView";
 
@@ -21,7 +21,6 @@ export default async function MercadoPage() {
         }
         actions={
           <>
-            <Freshness label="Precios" at={s.dataFreshness.marketUpdatedAt} />
             {workspace === "real" && <SyncButton kind={["market", "points"]} label="Actualizar precios" />}
           </>
         }

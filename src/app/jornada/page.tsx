@@ -2,7 +2,7 @@ import { getRepo } from "@/lib/services/context";
 import { buildState, tableView } from "@/lib/services/state";
 import { getTeam } from "@/lib/domain/teams";
 import { fmtDate, fmtDateTime } from "@/lib/domain/time";
-import { Empty, Freshness, PageHeader, PosBadge, ProbBar, Section, StatusBadge, TeamChip } from "@/components/ui";
+import { Empty, PageHeader, PosBadge, ProbBar, Section, StatusBadge, TeamChip } from "@/components/ui";
 import { SyncButton } from "@/components/SyncButton";
 import { MatchCard, type TeamRoster } from "@/components/MatchCard";
 import type { ProbableLineupEntry } from "@/lib/domain/types";
@@ -31,7 +31,6 @@ export default async function JornadaPage() {
         subtitle="Partidos, alineaciones probables, lesionados y sancionados. Las alineaciones son PROBABLES (estimaciones de la fuente o tuyas), nunca oficiales hasta que se publican antes del partido."
         actions={
           <>
-            <Freshness label="Alineaciones" at={s.dataFreshness.lineupsUpdatedAt} staleHours={12} />
             {workspace === "real" && <SyncButton kind="lineups" label="Actualizar alineaciones" />}
             {workspace === "real" && <SyncButton kind="fixtures" label="Calendario" ghost />}
           </>

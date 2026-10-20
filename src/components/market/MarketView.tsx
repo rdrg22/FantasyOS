@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Search, SlidersHorizontal, Plus, Check } from "lucide-react";
 import type { PlayerView } from "@/lib/services/state";
 import type { MarketListing, Position, PlayerStatus } from "@/lib/domain/types";
@@ -55,6 +55,21 @@ export function MarketView({
   const [dir, setDir] = useState<1 | -1>(-1);
   const [limit, setLimit] = useState(60);
   const [detail, setDetail] = useState<PlayerView | null>(null);
+  // Columnas extra (anterior, 7 días, puntos, media, estado, rival): ocultas por defecto, se recuerda la elección.
+  const [more, setMore] = useState(false);
+  useEffect(() => {
+    try {
+      setMore(localStorage.getItem("fos.market.more") === "1");
+    } catch {}
+  }, []);
+  const toggleMore = () => {
+    setMore((m) => {
+      try {
+        localStorage.setItem("fos.market.more", m ? "0" : "1");
+      } catch {}
+      return !m;
+    });
+  };
 
   const mine = useMemo(() => new Set(squadIds), [squadIds]);
   const listed = useMemo(() => new Map(listings.map((l) => [l.playerId, l])), [listings]);
@@ -160,26 +175,27 @@ export function MarketView({
           <label className="flex items-center gap-1.5">
             <input type="checkbox" className="accent-cyan" checked={hideMine} onChange={(e) => setHideMine(e.target.checked)} /> Ocultar mis jugadores
           </label>
+          <button className="ml-auto text-cyan hover:underline" onClick={toggleMore}>{more ? "Menos columnas" : "Más columnas"}</button>
         </div>
 
         {players.length === 0 ? (
           <Empty title="No hay jugadores todavía">Sincroniza los precios (botón superior) o crea jugadores a mano desde «Mi equipo».</Empty>
         ) : (
           <div className="-mx-4 max-h-[70vh] overflow-auto">
-            <table className="table-compact w-full min-w-[1180px]">
+            <table className={`table-compact w-full ${more ? "min-w-[1180px]" : "min-w-[760px]"}`}>
               <thead>
                 <tr>
                   {th("name", "Jugador")}
                   {th("value", "Valor", "!text-right")}
-                  <th className="!text-right">Anterior</th>
+                  {more && <th className="!text-right">Anterior</th>}
                   {th("change1", "Var.", "!text-right")}
-                  {th("pct7", "7 días", "!text-right")}
+                  {more && th("pct7", "7 días", "!text-right")}
                   <th>Tendencia</th>
-                  {th("points", "Pts", "!text-right")}
-                  {th("avg", "Media", "!text-right")}
+                  {more && th("points", "Pts", "!text-right")}
+                  {more && th("avg", "Media", "!text-right")}
                   {th("pPlay", "Juega")}
-                  <th>Estado</th>
-                  <th>Rival</th>
+                  {more && <th>Estado</th>}
+                  {more && <th>Rival</th>}
                   {th("xp", "Pts esp.", "!text-right")}
                   {th("opportunity", "Oport.")}
                   <th />
@@ -196,29 +212,34 @@ export function MarketView({
                             {p.name}
                             {mine.has(p.id) && <span className="rounded bg-cyan/15 px-1 text-[10px] text-cyan">MÍO</span>}
                             {listed.has(p.id) && <span className="rounded bg-up/15 px-1 text-[10px] text-up">EN MERCADO</span>}
+                            {!more && (p.status === "lesionado" || p.status === "sancionado" || p.status === "duda") && (
+                              <span className={`rounded px-1 text-[10px] ${p.status === "duda" ? "bg-gold/15 text-gold" : "bg-down/15 text-down"}`} title={p.statusNote ?? undefined}>
+                                {p.status === "duda" ? "DUDA" : p.status === "lesionado" ? "LESIÓN" : "SANCIÓN"}
+                              </span>
+                            )}
                           </div>
                           <TeamChip teamId={p.teamId} short />
                         </div>
                       </div>
                     </td>
                     <td className="num whitespace-nowrap text-right font-semibold" title={fmtMoney(p.value)}>{fmtCompact(p.value)}</td>
-                    <td className="num whitespace-nowrap text-right text-muted" title={fmtMoney(p.prev)}>{fmtCompact(p.prev)}</td>
+                    {more && <td className="num whitespace-nowrap text-right text-muted" title={fmtMoney(p.prev)}>{fmtCompact(p.prev)}</td>}
                     <td className="whitespace-nowrap text-right">
                       <div className={`num text-[12.5px] ${p.change1 == null ? "text-dim" : p.change1 > 0 ? "text-up" : p.change1 < 0 ? "text-down" : "text-muted"}`}>{fmtSigned(p.change1)}</div>
                       <Delta pct={p.pct1} size="xs" />
                     </td>
-                    <td className="text-right"><Delta pct={p.pct7} size="xs" /></td>
+                    {more && <td className="text-right"><Delta pct={p.pct7} size="xs" /></td>}
                     <td>
                       <div className="flex items-center gap-2">
                         <Sparkline data={p.series} width={70} height={24} />
                         {p.accelLabel && <span className={`text-[11px] ${p.accelLabel.includes("positiva") || (p.accelLabel === "acelera" && p.direction === "sube") ? "text-up" : p.accelLabel.includes("negativa") || (p.accelLabel === "acelera" && p.direction === "baja") ? "text-down" : "text-muted"}`}>{ACCEL[p.accelLabel]}</span>}
                       </div>
                     </td>
-                    <td className="num text-right">{p.pointsTotal ?? "—"}</td>
-                    <td className="num text-right text-muted">{p.pointsAvg?.toFixed(1) ?? "—"}</td>
+                    {more && <td className="num text-right">{p.pointsTotal ?? "—"}</td>}
+                    {more && <td className="num text-right text-muted">{p.pointsAvg?.toFixed(1) ?? "—"}</td>}
                     <td><ProbBar p={p.pPlaySource === "supuesto" ? null : p.pPlay} source={p.pPlaySource} /></td>
-                    <td><StatusBadge status={p.status} note={p.statusNote} /></td>
-                    <td>
+                    {more && <td><StatusBadge status={p.status} note={p.statusNote} /></td>}
+                    {more && <td>
                       {p.opponentId ? (
                         <div className="flex items-center gap-1.5 whitespace-nowrap">
                           <span className="text-[11px] text-dim">{p.home ? "vs" : "@"}</span>
@@ -226,7 +247,7 @@ export function MarketView({
                           <Difficulty d={p.difficulty} />
                         </div>
                       ) : <span className="text-dim">—</span>}
-                    </td>
+                    </td>}
                     <td className="num text-right text-gold">{p.xp.toFixed(1)}</td>
                     <td><ScoreRing score={p.opportunity} /></td>
                     <td onClick={(e) => e.stopPropagation()}>

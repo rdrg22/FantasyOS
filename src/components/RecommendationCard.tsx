@@ -29,6 +29,7 @@ export function RecommendationCard({
   ownsPlayer?: boolean;
 }) {
   const [open, setOpen] = useState(defaultOpen);
+  const [detail, setDetail] = useState(false);
   const intent = rec.intent ? INTENT[rec.intent] : null;
   const accent =
     rec.action === "COMPRAR" ? "before:bg-up" : rec.action === "VENDER" || rec.action === "SALDO" ? "before:bg-down" : rec.action === "VIGILAR" ? "before:bg-gold" : rec.action === "ALINEAR" ? "before:bg-cyan" : "before:bg-ink-500";
@@ -49,7 +50,7 @@ export function RecommendationCard({
             )}
           </div>
           <div className="mt-1.5 truncate font-medium">{rec.title}</div>
-          {!compact && <div className="mt-0.5 line-clamp-1 text-[12.5px] text-muted">{rec.reasons[0]}</div>}
+          {!compact && !open && <div className="mt-0.5 line-clamp-1 text-[12.5px] text-muted">{rec.reasons[0]}</div>}
         </div>
         <div className="hidden shrink-0 text-right sm:block">
           {rec.price != null && <div className="num text-sm font-semibold">{fmtMoney(rec.price)}</div>}
@@ -61,47 +62,35 @@ export function RecommendationCard({
       </button>
 
       {open && (
-        <div className="grid gap-4 border-t border-line px-4 py-4 text-[13px] md:grid-cols-2">
-          <Block icon={<Target size={14} />} title="Motivo">
-            <List items={rec.reasons} />
-          </Block>
-          <Block icon={<TrendingUp size={14} className="text-up" />} title="Beneficios potenciales">
-            <List items={rec.benefits.length ? rec.benefits : ["—"]} />
-          </Block>
-          <Block icon={<ShieldAlert size={14} className="text-down" />} title="Riesgos e incertidumbre">
-            <List items={rec.risks.length ? rec.risks : ["Sin riesgos destacados con los datos disponibles."]} />
-          </Block>
-          <Block icon={<Wallet size={14} className="text-cyan" />} title="Efecto en el presupuesto">
-            <div className="num grid grid-cols-[auto_1fr] gap-x-4 gap-y-0.5">
-              <span className="text-muted">Saldo actual</span>
-              <span>{fmtMoney(rec.budget.before)}</span>
-              {rec.budget.income > 0 && (
-                <>
-                  <span className="text-muted">{rec.replaces ? `Venta de ${rec.replaces.playerName}` : "Ingreso por venta"}</span>
-                  <span className="text-up">+{fmtMoney(rec.budget.income)}</span>
-                </>
-              )}
-              {rec.budget.cost > 0 && (
-                <>
-                  <span className="text-muted">Coste</span>
-                  <span className="text-down">−{fmtMoney(rec.budget.cost)}</span>
-                </>
-              )}
-              <span className="text-muted">Saldo resultante</span>
-              <span className={rec.budget.after < 0 ? "font-semibold text-down" : "font-semibold"}>{fmtMoney(rec.budget.after)}</span>
-            </div>
-            {rec.budget.note && <p className="mt-1.5 text-[12px] text-gold">{rec.budget.note}</p>}
-          </Block>
-          <Block icon={<Shirt size={14} className="text-gold" />} title="Impacto en tu alineación">
-            <p className="text-muted">{rec.lineupImpact}</p>
-          </Block>
-          <Block icon={<Database size={14} className="text-violet" />} title="Confianza y datos usados">
-            <ConfidencePill level={rec.confidence.level} />
-            <p className="mt-1 text-[12px] text-muted">Usados: {rec.confidence.used.join(", ") || "—"}</p>
-            {rec.confidence.missing.length > 0 && <p className="text-[12px] text-gold">Faltan: {rec.confidence.missing.join(", ")}</p>}
-          </Block>
+        <div className="border-t border-line px-4 py-3 text-[13px]">
+          <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5">
+            <dt className="flex items-center gap-1.5 text-muted"><Target size={13} /> Por qué</dt>
+            <dd>{rec.reasons[0] ?? "—"}</dd>
+            {rec.benefits[0] && (
+              <>
+                <dt className="flex items-center gap-1.5 text-muted"><TrendingUp size={13} className="text-up" /> A favor</dt>
+                <dd>{rec.benefits[0]}</dd>
+              </>
+            )}
+            {rec.risks[0] && (
+              <>
+                <dt className="flex items-center gap-1.5 text-muted"><ShieldAlert size={13} className="text-down" /> En contra</dt>
+                <dd>{rec.risks[0]}</dd>
+              </>
+            )}
+            {(rec.budget.cost > 0 || rec.budget.income > 0) && (
+              <>
+                <dt className="flex items-center gap-1.5 text-muted"><Wallet size={13} className="text-cyan" /> Saldo</dt>
+                <dd className="num">
+                  {fmtMoney(rec.budget.before)} → <b className={rec.budget.after < 0 ? "text-down" : ""}>{fmtMoney(rec.budget.after)}</b>
+                  {rec.budget.note && <span className="ml-2 text-gold">{rec.budget.note}</span>}
+                </dd>
+              </>
+            )}
+          </dl>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
           {rec.playerId && (rec.action === "COMPRAR" || rec.action === "VENDER") && (
-            <div className="flex flex-wrap gap-2 md:col-span-2">
+            <>
               {rec.action === "VENDER" && ownsPlayer && <TradeButton mode="sell" playerId={rec.playerId} playerName={rec.playerName} suggestedPrice={rec.price} />}
               {rec.action === "COMPRAR" && rec.replaces && (
                 <TradeButton mode="sell" playerId={rec.replaces.playerId} playerName={rec.replaces.playerName} suggestedPrice={rec.replaces.saleValue} label={`1. Registrar venta de ${rec.replaces.playerName}`} />
@@ -109,7 +98,53 @@ export function RecommendationCard({
               {rec.action === "COMPRAR" && (
                 <TradeButton mode="buy" playerId={rec.playerId} playerName={rec.playerName} suggestedPrice={rec.price} label={rec.replaces ? `2. Registrar compra de ${rec.playerName}` : undefined} />
               )}
-            </div>
+            </>
+          )}
+            <button className="ml-auto text-[12.5px] text-cyan hover:underline" onClick={() => setDetail(!detail)}>
+              {detail ? "Ocultar detalle" : "Ver detalle"}
+            </button>
+          </div>
+          {detail && (
+          <div className="mt-3 grid gap-4 border-t border-line pt-3 md:grid-cols-2">
+            <Block icon={<Target size={14} />} title="Motivo">
+              <List items={rec.reasons} />
+            </Block>
+            <Block icon={<TrendingUp size={14} className="text-up" />} title="Beneficios potenciales">
+              <List items={rec.benefits.length ? rec.benefits : ["—"]} />
+            </Block>
+            <Block icon={<ShieldAlert size={14} className="text-down" />} title="Riesgos e incertidumbre">
+              <List items={rec.risks.length ? rec.risks : ["Sin riesgos destacados con los datos disponibles."]} />
+            </Block>
+            <Block icon={<Wallet size={14} className="text-cyan" />} title="Efecto en el presupuesto">
+              <div className="num grid grid-cols-[auto_1fr] gap-x-4 gap-y-0.5">
+                <span className="text-muted">Saldo actual</span>
+                <span>{fmtMoney(rec.budget.before)}</span>
+                {rec.budget.income > 0 && (
+                  <>
+                    <span className="text-muted">{rec.replaces ? `Venta de ${rec.replaces.playerName}` : "Ingreso por venta"}</span>
+                    <span className="text-up">+{fmtMoney(rec.budget.income)}</span>
+                  </>
+                )}
+                {rec.budget.cost > 0 && (
+                  <>
+                    <span className="text-muted">Coste</span>
+                    <span className="text-down">−{fmtMoney(rec.budget.cost)}</span>
+                  </>
+                )}
+                <span className="text-muted">Saldo resultante</span>
+                <span className={rec.budget.after < 0 ? "font-semibold text-down" : "font-semibold"}>{fmtMoney(rec.budget.after)}</span>
+              </div>
+              {rec.budget.note && <p className="mt-1.5 text-[12px] text-gold">{rec.budget.note}</p>}
+            </Block>
+            <Block icon={<Shirt size={14} className="text-gold" />} title="Impacto en tu alineación">
+              <p className="text-muted">{rec.lineupImpact}</p>
+            </Block>
+            <Block icon={<Database size={14} className="text-violet" />} title="Confianza y datos usados">
+              <ConfidencePill level={rec.confidence.level} />
+              <p className="mt-1 text-[12px] text-muted">Usados: {rec.confidence.used.join(", ") || "—"}</p>
+              {rec.confidence.missing.length > 0 && <p className="text-[12px] text-gold">Faltan: {rec.confidence.missing.join(", ")}</p>}
+            </Block>
+          </div>
           )}
         </div>
       )}
