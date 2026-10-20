@@ -96,7 +96,7 @@ export default async function JornadaPage() {
               </Section>
             )}
 
-            <Section eyebrow={`Calculada con ${table.reduce((a, t) => a + t.played, 0) / 2} resultados`} title="Clasificación">
+            <Section eyebrow={`Calculada con ${table.reduce((a, t) => a + t.played, 0) / 2} resultados`} title="Clasificación" info="Calculada con los resultados disponibles en la fuente del calendario; puede ir con retraso respecto a la oficial. Se usa para estimar la dificultad del rival.">
               <table className="table-compact w-full">
                 <thead>
                   <tr><th>#</th><th>Equipo</th><th className="!text-right">PJ</th><th className="!text-right">DG</th><th className="!text-right">Pts</th></tr>
@@ -113,7 +113,6 @@ export default async function JornadaPage() {
                   ))}
                 </tbody>
               </table>
-              <p className="mt-2 text-[11px] text-dim">Solo cuenta los resultados disponibles en la fuente del calendario; puede ir con retraso respecto a la clasificación oficial. Se usa para estimar la dificultad del rival.</p>
             </Section>
           </div>
         </div>

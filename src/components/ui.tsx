@@ -6,13 +6,32 @@ import { timeAgo } from "@/lib/domain/time";
 import type { PlayerStatus, Position } from "@/lib/domain/types";
 import { STATUS_LABEL } from "@/lib/domain/types";
 
+/** Icono ⓘ con explicación al pasar el ratón o al enfocarlo con el teclado. */
+export function InfoTip({ children, align = "left" }: { children: ReactNode; align?: "left" | "right" }) {
+  return (
+    <span className="group relative inline-flex align-middle">
+      <button type="button" className="inline-flex text-dim transition-colors hover:text-cyan focus:text-cyan focus:outline-none" aria-label="Más información">
+        <Info size={14} />
+      </button>
+      <span
+        role="tooltip"
+        className={`pointer-events-none invisible absolute top-6 z-50 w-72 rounded-lg border border-ink-600 bg-ink-850 px-3 py-2 text-left text-[12.5px] font-normal normal-case leading-snug tracking-normal text-fg/90 opacity-0 shadow-2xl transition-opacity group-focus-within:visible group-focus-within:opacity-100 group-hover:visible group-hover:opacity-100 ${align === "right" ? "right-0" : "left-0"}`}
+      >
+        {children}
+      </span>
+    </span>
+  );
+}
+
 export function PageHeader({ eyebrow, title, subtitle, actions }: { eyebrow: string; title: string; subtitle?: ReactNode; actions?: ReactNode }) {
   return (
     <header className="mb-6 flex flex-wrap items-end justify-between gap-4 pl-10 lg:pl-0">
       <div>
         <div className="eyebrow mb-1.5 text-cyan/80">{eyebrow}</div>
-        <h1 className="font-display text-[28px] font-semibold leading-none tracking-tight">{title}</h1>
-        {subtitle && <p className="mt-2 max-w-2xl text-sm text-muted">{subtitle}</p>}
+        <h1 className="flex items-center gap-2 font-display text-[28px] font-semibold leading-none tracking-tight">
+          {title}
+          {subtitle && <InfoTip>{subtitle}</InfoTip>}
+        </h1>
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
     </header>
@@ -33,13 +52,16 @@ export function Kpi({ label, value, sub, tone = "fg", icon }: { label: string; v
   );
 }
 
-export function Section({ title, eyebrow, actions, children, className = "" }: { title: ReactNode; eyebrow?: string; actions?: ReactNode; children: ReactNode; className?: string }) {
+export function Section({ title, eyebrow, actions, info, children, className = "" }: { title: ReactNode; eyebrow?: string; actions?: ReactNode; info?: ReactNode; children: ReactNode; className?: string }) {
   return (
     <section className={`panel p-4 sm:p-5 ${className}`}>
       <div className="mb-3.5 flex flex-wrap items-center justify-between gap-2">
         <div>
           {eyebrow && <div className="eyebrow mb-0.5">{eyebrow}</div>}
-          <h2 className="font-display text-[16.5px] font-semibold tracking-tight">{title}</h2>
+          <h2 className="flex items-center gap-2 font-display text-[16.5px] font-semibold tracking-tight">
+            {title}
+            {info && <InfoTip>{info}</InfoTip>}
+          </h2>
         </div>
         {actions}
       </div>

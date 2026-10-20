@@ -39,10 +39,7 @@ export function PriceChart({ data }: { data: { label: string; value: number; kin
 export function SquadValueChart({ data }: { data: { date: string; squadValue: number; budget: number }[] }) {
   if (data.length < 2)
     return (
-      <div className="flex h-56 flex-col items-center justify-center text-center text-sm text-muted">
-        <span>La evolución se construye con un punto por día.</span>
-        <span className="text-dim">Vuelve mañana (o sincroniza a diario) para ver la curva. No se inventan datos pasados.</span>
-      </div>
+      <div className="flex h-56 items-center justify-center text-center text-sm text-muted">La curva aparece a partir del segundo día con datos.</div>
     );
   const rows = data.map((d) => ({ ...d, total: d.squadValue + d.budget, label: d.date.slice(5).split("-").reverse().join("/") }));
   return (

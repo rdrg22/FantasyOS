@@ -178,7 +178,6 @@ export function AddPlayerPanel({ catalog, budget, full }: { catalog: CatalogItem
               ))}
             </select>
           </div>
-          <p className="text-[11.5px] text-dim sm:col-span-2">Si más adelante la sincronización trae a este jugador, se fusionará automáticamente con el de la fuente.</p>
           <div className="flex justify-end sm:col-span-2">
             <button className="btn-ghost" disabled={busy}>Crear jugador</button>
           </div>

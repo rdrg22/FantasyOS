@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Modal } from "../Modal";
 import { MoneyInput } from "../MoneyInput";
 import { useAction } from "../useAction";
+import { InfoTip } from "../ui";
 import { TEAMS } from "@/lib/domain/teams";
 import { POSITIONS, POSITION_LABEL, STATUS_LABEL, type PlayerStatus, type Position } from "@/lib/domain/types";
 import type { SquadRowView } from "./SquadManager";
@@ -62,8 +63,7 @@ export function EditPlayerModal({ row, onClose }: { row: SquadRowView; onClose: 
         </fieldset>
 
         <fieldset className="space-y-3">
-          <legend className="eyebrow mb-2">Datos del jugador (edición manual)</legend>
-          <p className="text-[12px] text-dim">Lo que cambies aquí prevalece sobre la sincronización hasta que lo restaures.</p>
+          <legend className="eyebrow mb-2 flex items-center gap-1.5">Datos del jugador (edición manual) <InfoTip>Lo que cambies aquí prevalece sobre la sincronización hasta que lo restaures.</InfoTip></legend>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="label">Valor actual (€)</label>

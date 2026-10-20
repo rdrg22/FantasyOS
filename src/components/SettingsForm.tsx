@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useAction } from "./useAction";
+import { InfoTip } from "./ui";
 
 export function SettingsForm({ teamName, maxSquadSize }: { teamName: string; maxSquadSize: number }) {
   const [name, setName] = useState(teamName);
@@ -22,9 +23,8 @@ export function SettingsForm({ teamName, maxSquadSize }: { teamName: string; max
         <input className="input" value={name} onChange={(e) => setName(e.target.value)} maxLength={40} required />
       </div>
       <div>
-        <label className="label">Máximo de jugadores en plantilla</label>
+        <label className="label flex items-center gap-1.5">Máximo de jugadores en plantilla <InfoTip>Ajústalo a las reglas de tu liga. Se usa para saber si un fichaje necesita una venta.</InfoTip></label>
         <input className="input num" type="number" min={11} max={40} value={max} onChange={(e) => setMax(e.target.value)} required />
-        <p className="mt-1 text-[11.5px] text-dim">Ajústalo a las reglas de tu liga. Se usa para comprobar si un fichaje necesita una venta.</p>
       </div>
       <button className="btn-primary" disabled={busy || !valid}>Guardar ajustes</button>
     </form>

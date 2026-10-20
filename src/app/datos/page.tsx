@@ -1,61 +1,44 @@
+import Link from "next/link";
 import { getRepo } from "@/lib/services/context";
 import { buildState } from "@/lib/services/state";
 import { ffEnabled, currentSeason } from "@/lib/services/sync";
 import { footballDataEnabled } from "@/lib/providers/footballdata";
-import { dbFile } from "@/lib/db/sqlite";
+import { supabaseEnabled } from "@/lib/supabase/config";
 import { fmtDateTime, timeAgo } from "@/lib/domain/time";
 import { Freshness, PageHeader, Section } from "@/components/ui";
 import { SyncButton } from "@/components/SyncButton";
 import { SettingsForm, DemoReset } from "@/components/SettingsForm";
 
-const SOURCES = [
-  {
-    name: "FútbolFantasy — mercado y puntos",
-    status: "Integrada (HTML público)",
-    provides: "Valor actual y de hace 1/2/3/7/14/30 mercados, tendencia, aceleración, próximo rival y % de titularidad; puntos LaLiga Fantasy (total, media, últimas 5).",
-    limits: "No es una API documentada: se lee la página pública (robots.txt lo permite). 2 peticiones por sincronización, mínimo 60 min entre sincronizaciones. Si cambia el diseño de la web, el parser falla de forma controlada y se puede seguir con datos manuales. Uso personal; revisa sus condiciones antes de cualquier otro uso.",
-  },
-  {
-    name: "FútbolFantasy — alineaciones probables",
-    status: "Integrada (HTML público)",
-    provides: "Once probable, alternativas, % de titularidad, lesionados y sancionados por partido.",
-    limits: "1 página por partido (≈11 peticiones espaciadas 1,5 s). Son estimaciones de la web, no alineaciones oficiales; algunos partidos se publican tarde. Editables a mano.",
-  },
-  {
-    name: "openfootball / football.json",
-    status: "Integrada (sin clave)",
-    provides: "Calendario completo, fechas, horarios (cuando se publican) y resultados.",
-    limits: "Dominio público, mantenido por voluntarios: resultados y horarios pueden llegar con días de retraso. La clasificación calculada puede ir por detrás de la oficial.",
-  },
-  {
-    name: "football-data.org",
-    status: "Opcional (FOOTBALL_DATA_API_KEY)",
-    provides: "Calendario y resultados oficiales de LaLiga (competición PD).",
-    limits: "Requiere registro gratuito; 10 peticiones/min. Sin clave responde 403. Plan gratuito sin alineaciones ni estadísticas de jugador.",
-  },
-  {
-    name: "API de LaLiga Fantasy (api-fantasy.llt-services.com)",
-    status: "No integrada",
-    provides: "Datos oficiales del juego (mercado de tu liga, pujas, puntos).",
-    limits: "No es pública ni está documentada; exige iniciar sesión con tu cuenta y tokens de 24 h. Usarla automatizando tu login puede vulnerar los términos del juego. En las pruebas respondía 502. Por eso tu mercado diario se introduce a mano o por CSV.",
-  },
-];
-
 export default async function DatosPage() {
   const { repo, workspace } = await getRepo();
   const s = await buildState(repo, workspace);
+  const storage = supabaseEnabled() ? "Supabase (Postgres)" : (await import("@/lib/db/sqlite")).dbFile(workspace);
   return (
     <>
       <PageHeader
         eyebrow="Configuración"
         title="Datos y fuentes"
-        subtitle="De dónde sale cada dato, cuándo se actualizó y qué límites tiene. Si una integración falla, todo se puede introducir a mano."
+        subtitle={
+          <>
+            Cuándo se actualizó cada dato. Si una integración falla, todo se puede introducir a mano. Qué ofrece y qué límites tiene cada fuente: <Link href="/ayuda" className="text-cyan underline">Ayuda</Link>.
+          </>
+        }
       />
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
         <div className="space-y-6">
-          <Section eyebrow={workspace === "demo" ? "Modo demostración" : `Temporada ${currentSeason()}`} title="Sincronización">
+          <Section
+            eyebrow={workspace === "demo" ? "Modo demostración" : `Temporada ${currentSeason()}`}
+            title="Sincronización"
+            info={
+              <>
+                Cada sincronización guarda una foto diaria de los precios: con el tiempo, las tendencias se calculan con tu propio histórico. En la web publicada se ejecuta sola cada día.
+                <br />
+                FútbolFantasy: {ffEnabled() ? "activado" : "desactivado"} · football-data.org: {footballDataEnabled() ? "con clave" : "sin clave (se usa openfootball)"}.
+              </>
+            }
+          >
             {workspace === "demo" ? (
-              <p className="text-sm text-muted">Estás viendo datos ficticios. Cambia a «Mis datos» en la barra lateral para sincronizar fuentes reales.</p>
+              <p className="text-sm text-muted">Estás viendo datos ficticios. Cambia a «Mis datos» para sincronizar.</p>
             ) : (
               <>
                 <div className="mb-4 grid gap-2 sm:grid-cols-3">
@@ -78,13 +61,7 @@ export default async function DatosPage() {
                 <div className="flex flex-wrap items-center gap-2">
                   <SyncButton kind="all" label="Sincronizar todo" />
                   <SyncButton kind="all" label="Forzar (ignorar intervalo)" force ghost />
-                  <span className="text-[11.5px] text-dim">
-                    FútbolFantasy: {ffEnabled() ? "activado" : "desactivado"} · football-data.org: {footballDataEnabled() ? "clave configurada" : "sin clave (se usa openfootball)"}
-                  </span>
                 </div>
-                <p className="mt-3 text-[12px] text-dim">
-                  Automatízalo una vez al día con <code className="text-cyan">npm run sync</code> (Programador de tareas / cron) o llamando a <code className="text-cyan">/api/cron/daily</code>. Cada sincronización guarda una instantánea diaria de precios: con el tiempo, las tendencias se calculan con tu propio histórico.
-                </p>
               </>
             )}
           </Section>
@@ -110,39 +87,21 @@ export default async function DatosPage() {
               </div>
             )}
           </Section>
-
-          <Section eyebrow="Investigación de fuentes" title="Qué ofrece cada fuente y sus límites">
-            <div className="space-y-3">
-              {SOURCES.map((src) => (
-                <div key={src.name} className="panel-inset p-3">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="font-medium">{src.name}</span>
-                    <span className={`text-[11.5px] ${src.status.startsWith("Integrada") ? "text-up" : src.status.startsWith("Opcional") ? "text-cyan" : "text-down"}`}>{src.status}</span>
-                  </div>
-                  <p className="mt-1 text-[12.5px] text-fg/85">{src.provides}</p>
-                  <p className="mt-1 text-[12px] text-muted">{src.limits}</p>
-                </div>
-              ))}
-              <p className="text-[11.5px] text-dim">Detalle completo en <code>docs/FUENTES.md</code>.</p>
-            </div>
-          </Section>
         </div>
 
         <div className="space-y-6">
           <Section eyebrow="Tu cuenta" title="Ajustes">
             <SettingsForm teamName={s.settings.teamName} maxSquadSize={s.settings.maxSquadSize} />
           </Section>
-          <Section eyebrow="Persistencia" title="Tus datos">
+          <Section eyebrow="Persistencia" title="Tus datos" info="Los datos reales y los de demostración se guardan por separado y nunca se mezclan.">
             <ul className="space-y-1.5 text-[12.5px] text-muted">
-              <li>Base de datos: <code className="break-all text-fg/80">{dbFile(workspace)}</code></li>
-              <li>{s.dataFreshness.playerCount} jugadores · {s.dataFreshness.snapshotDays} días de precios guardados · {s.transactions.length} operaciones</li>
-              <li>Los datos reales y los de demostración están en archivos separados.</li>
+              <li>Almacenamiento: <code className="break-all text-fg/80">{storage}</code></li>
+              <li>{s.dataFreshness.playerCount} jugadores · {s.dataFreshness.snapshotDays} días de precios · {s.transactions.length} operaciones</li>
             </ul>
             <a href="/api/export" className="btn-ghost mt-3 w-full">Descargar copia de seguridad (JSON)</a>
           </Section>
           {workspace === "demo" && (
-            <Section eyebrow="Demo" title="Datos de demostración">
-              <p className="mb-3 text-[12.5px] text-muted">Jugadores con nombres inventados en equipos reales, precios y resultados simulados. Sirven solo para probar el sistema.</p>
+            <Section eyebrow="Demo" title="Datos de demostración" info="Jugadores con nombres inventados en equipos reales, con precios y resultados simulados. Solo sirven para probar.">
               <DemoReset />
             </Section>
           )}

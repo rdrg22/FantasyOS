@@ -109,7 +109,6 @@ export function RecommendationCard({
               {rec.action === "COMPRAR" && (
                 <TradeButton mode="buy" playerId={rec.playerId} playerName={rec.playerName} suggestedPrice={rec.price} label={rec.replaces ? `2. Registrar compra de ${rec.playerName}` : undefined} />
               )}
-              <span className="self-center text-[11.5px] text-dim">Registra la operación aquí cuando la hagas en LaLiga Fantasy.</span>
             </div>
           )}
         </div>

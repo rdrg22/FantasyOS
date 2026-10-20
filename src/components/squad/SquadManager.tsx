@@ -239,9 +239,6 @@ export function SquadManager({
         {tab === "evolucion" && (
           <div className="space-y-4">
             <SquadValueChart data={valueHistory} />
-            <p className="text-[12px] text-dim">
-              Se guarda un punto cada día que abres la app o se ejecuta la sincronización diaria. Los días sin registro no se rellenan con datos inventados.
-            </p>
           </div>
         )}
       </section>

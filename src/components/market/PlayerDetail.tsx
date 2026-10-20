@@ -94,7 +94,6 @@ export function PlayerDetail({ p, onClose, owned, listing, today, budget }: { p:
           {owned && <TradeButton mode="sell" playerId={p.id} playerName={p.name} suggestedPrice={p.value} />}
         </div>
       </div>
-      <p className="mt-3 text-[11px] text-dim">Variación de hoy: {fmtPct(p.pct1)} · Los precios futuros no se pueden conocer: las tendencias son señales, no garantías.</p>
     </Modal>
   );
 }

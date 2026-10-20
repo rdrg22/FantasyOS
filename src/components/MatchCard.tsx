@@ -153,7 +153,6 @@ function EditEntry({ roster, matchday, entry, onClose }: { roster: TeamRoster; m
             <input className="input num" type="number" min={0} max={100} value={prob} onChange={(e) => setProb(e.target.value)} placeholder="opcional" />
           </div>
         </div>
-        <p className="text-[11.5px] text-dim">Las ediciones manuales se conservan aunque vuelvas a importar desde la fuente y actualizan el estado del jugador.</p>
         <div className="flex justify-end gap-2">
           <button type="button" className="btn-ghost" onClick={onClose}>Cancelar</button>
           <button className="btn-primary" disabled={busy}>Guardar</button>

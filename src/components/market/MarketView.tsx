@@ -160,7 +160,6 @@ export function MarketView({
           <label className="flex items-center gap-1.5">
             <input type="checkbox" className="accent-cyan" checked={hideMine} onChange={(e) => setHideMine(e.target.checked)} /> Ocultar mis jugadores
           </label>
-          {snapshotDays < 3 && <span className="text-dim">Tendencias calculadas con el histórico publicado por la fuente; las propias se acumulan con cada sincronización diaria.</span>}
         </div>
 
         {players.length === 0 ? (

@@ -6,7 +6,7 @@ import type { PlayerView } from "@/lib/services/state";
 import type { MarketListing } from "@/lib/domain/types";
 import { fmtCompact, fmtMoney } from "@/lib/domain/money";
 import { fmtDate } from "@/lib/domain/time";
-import { Delta, PosBadge, ScoreRing, TeamChip } from "../ui";
+import { Delta, InfoTip, PosBadge, ScoreRing, TeamChip } from "../ui";
 import { Modal } from "../Modal";
 import { MoneyInput } from "../MoneyInput";
 import { PlayerSearch } from "../squad/AddPlayerPanel";
@@ -52,8 +52,8 @@ export function DailyMarket({
           <h2 className="flex items-center gap-2 font-display text-[16.5px] font-semibold">
             <Store size={16} className="text-up" /> Mi mercado {listingsDate ? `del ${fmtDate(listingsDate)}` : "de hoy"}
             {listingsDate && !isToday && <span className="rounded bg-gold/15 px-1.5 text-[11px] font-normal text-gold">no es de hoy</span>}
+            <InfoTip>Los jugadores que ves hoy en el mercado de tu liga. Las recomendaciones de compra priorizan estos; sin ellos usan el catálogo completo y bajan su confianza.</InfoTip>
           </h2>
-          <p className="text-[12px] text-muted">Los jugadores que ves hoy en el mercado de tu liga. El motor de recomendaciones prioriza estos.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <button className="btn-ghost" onClick={() => setAdding(!adding)}>{adding ? <X size={14} /> : "+"} Añadir jugador</button>
@@ -93,8 +93,7 @@ export function DailyMarket({
 
       {rows.length === 0 ? (
         <p className="rounded-lg border border-dashed border-ink-600 px-4 py-5 text-center text-[13px] text-muted">
-          Aún no has registrado el mercado de tu liga. Añade los jugadores uno a uno, impórtalos por CSV o pulsa <b>+</b> en la tabla de abajo.
-          Sin este dato, las recomendaciones de compra usan el catálogo completo y bajan su confianza.
+          Aún no has registrado el mercado de tu liga de hoy.
         </p>
       ) : (
         <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">

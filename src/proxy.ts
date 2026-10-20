@@ -9,7 +9,7 @@ import { createServerClient } from "@supabase/ssr";
 export async function proxy(request: NextRequest) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !key) return NextResponse.next();
+  if (!url || !key || process.env.FOS_FORCE_LOCAL === "1") return NextResponse.next();
 
   let response = NextResponse.next({ request });
   const supabase = createServerClient(url, key, {

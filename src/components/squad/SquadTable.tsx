@@ -107,9 +107,6 @@ export function SquadTable({ rows, onAdd }: { rows: SquadRowView[]; onAdd: () =>
           </tbody>
         </table>
       </div>
-      <p className="mt-3 text-[11.5px] text-dim">
-        «Vender» registra la venta y suma el importe al presupuesto. La papelera solo corrige errores de carga. «Pts esp.» = puntos esperados en la próxima jornada (estimación).
-      </p>
       {edit && <EditPlayerModal row={edit} onClose={() => setEdit(null)} />}
     </>
   );

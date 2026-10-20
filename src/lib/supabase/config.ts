@@ -20,5 +20,6 @@ export function supabaseSecretKey(): string | undefined {
 
 /** Modo Supabase activo (requiere las tres variables). */
 export function supabaseEnabled(): boolean {
+  if (process.env.FOS_FORCE_LOCAL === "1") return false; // npm run dev:local
   return Boolean(supabaseUrl() && supabasePublishableKey() && supabaseSecretKey());
 }

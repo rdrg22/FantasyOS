@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { Activity, CalendarDays, Database, LayoutDashboard, LogOut, Menu, ShoppingCart, Sparkles, Users, X, Shirt } from "lucide-react";
+import { Activity, CalendarDays, Database, LayoutDashboard, HelpCircle, LogOut, Menu, ShoppingCart, Sparkles, Users, X, Shirt } from "lucide-react";
 import { timeAgo } from "@/lib/domain/time";
 import { WorkspaceSwitch } from "./WorkspaceSwitch";
 
@@ -15,6 +15,7 @@ const NAV = [
   { href: "/alineacion", label: "Once ideal", icon: Shirt, hint: "Recomendador de alineación" },
   { href: "/jornada", label: "Jornada", icon: CalendarDays, hint: "Partidos y alineaciones probables" },
   { href: "/datos", label: "Datos y fuentes", icon: Database, hint: "Sincronización y ajustes" },
+  { href: "/ayuda", label: "Ayuda", icon: HelpCircle, hint: "Glosario, metodología y fuentes" },
 ];
 
 export function Sidebar({ workspace, teamName, lastMarketSync, canLogout = false }: { workspace: "real" | "demo"; teamName: string; lastMarketSync: string | null; canLogout?: boolean }) {
@@ -43,6 +44,7 @@ export function Sidebar({ workspace, teamName, lastMarketSync, canLogout = false
             <li key={n.href}>
               <Link
                 href={n.href}
+                title={n.hint}
                 onClick={() => setOpen(false)}
                 className={`group relative flex items-center gap-3 rounded-xl px-3 py-2 transition-colors ${
                   active ? "bg-cyan/10 text-fg" : "text-muted hover:bg-ink-800 hover:text-fg"
@@ -50,10 +52,7 @@ export function Sidebar({ workspace, teamName, lastMarketSync, canLogout = false
               >
                 {active && <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r bg-cyan shadow-[0_0_12px_rgba(45,212,240,0.8)]" />}
                 <Icon size={17} className={active ? "text-cyan" : "text-dim group-hover:text-muted"} />
-                <span className="flex flex-col leading-tight">
-                  <span className="text-[13.5px] font-medium">{n.label}</span>
-                  <span className="text-[10.5px] text-dim">{n.hint}</span>
-                </span>
+                <span className="text-[13.5px] font-medium">{n.label}</span>
               </Link>
             </li>
           );

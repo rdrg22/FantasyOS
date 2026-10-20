@@ -80,9 +80,8 @@ export default async function AlineacionPage() {
               </ul>
             </Section>
             <div className="space-y-6">
-              <Section eyebrow="Comparativa" title="Formaciones posibles">
+              <Section eyebrow="Comparativa" title="Formaciones posibles" info="Puntos esperados de tu mejor once en cada formación. En rojo, las que no puedes completar con tu plantilla.">
                 <FormationBars data={rec.options} best={rec.formation} />
-                <p className="mt-1 text-[11.5px] text-dim">Barras rojas: no tienes jugadores suficientes para esa formación.</p>
               </Section>
               <Section eyebrow="Banquillo" title="Alternativas por línea">
                 {(Object.keys(rec.bench) as Position[]).filter((p) => rec.bench[p].length).map((pos) => (

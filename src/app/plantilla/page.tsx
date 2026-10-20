@@ -26,7 +26,7 @@ export default async function PlantillaPage() {
 
   return (
     <>
-      <PageHeader eyebrow="Gestión" title="Mi equipo" subtitle="Tu plantilla, tu once y tu dinero. Todo se guarda en tu base de datos local y sobrevive a cerrar la web." />
+      <PageHeader eyebrow="Gestión" title="Mi equipo" subtitle="Tu plantilla, tu once y tu dinero. Todo queda guardado aunque cierres la web." />
       <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-5">
         <Kpi label="Presupuesto" value={fmtMoney(s.settings.budget)} tone={s.settings.budget < 0 ? "down" : "up"} />
         <Kpi label="Valor plantilla" value={<span title={fmtMoney(s.squadValue)}>{fmtCompact(s.squadValue)} €</span>} tone="cyan" sub={`Invertido: ${fmtCompact(invested)}`} />

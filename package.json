@@ -9,7 +9,8 @@
     "start": "next start",
     "lint": "tsc --noEmit",
     "test": "vitest run",
-    "sync": "tsx --env-file-if-exists=.env.local --no-warnings scripts/sync.ts"
+    "sync": "tsx --env-file-if-exists=.env.local --no-warnings scripts/sync.ts",
+    "dev:local": "node scripts/dev-local.mjs"
   },
   "engines": {
     "node": ">=22.13"

@@ -7,7 +7,7 @@ import { fmtMoney, fmtSigned } from "@/lib/domain/money";
 import { fmtDate } from "@/lib/domain/time";
 import { MoneyInput } from "../MoneyInput";
 import { useAction } from "../useAction";
-import { Empty } from "../ui";
+import { Empty, InfoTip } from "../ui";
 
 export function BudgetPanel({ budget, transactions, balance }: { budget: number; transactions: Transaction[]; balance: { bought: number; sold: number; adjustments: number; realizedProfit: number } }) {
   const [value, setValue] = useState<number | null>(budget);
@@ -23,9 +23,8 @@ export function BudgetPanel({ budget, transactions, balance }: { budget: number;
         }}
       >
         <div>
-          <label className="label">Presupuesto disponible en LaLiga Fantasy (€)</label>
+          <label className="label flex items-center gap-1.5">Presupuesto disponible en LaLiga Fantasy (€) <InfoTip>Úsalo para cuadrar con la app oficial (primas, puntos cobrados, cláusulas…). Queda registrado como ajuste.</InfoTip></label>
           <MoneyInput value={value} onChange={setValue} allowNegative required />
-          <p className="mt-1 text-[11.5px] text-dim">Úsalo para cuadrar con la app oficial (primas, puntos cobrados, cláusulas…). Queda registrado como ajuste.</p>
         </div>
         <button className="btn-primary" disabled={busy || value == null || value === budget}>Actualizar saldo</button>
       </form>
