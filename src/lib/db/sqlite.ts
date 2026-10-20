@@ -6,7 +6,7 @@ import type { Workspace } from "../domain/types";
 // Una base de datos SQLite por espacio de trabajo: "real" y "demo" nunca se mezclan.
 // SQLite está integrado en Node >= 22.13 (node:sqlite), sin dependencias nativas.
 
-const SCHEMA_VERSION = 3;
+const SCHEMA_VERSION = 5;
 
 const MIGRATIONS: string[] = [
   `
@@ -157,6 +157,27 @@ const MIGRATIONS: string[] = [
     points INTEGER NOT NULL,
     updated_at TEXT NOT NULL,
     PRIMARY KEY (matchday, player_id)
+  );
+  `,
+  // v4: cláusula de cada jugador de la plantilla
+  `
+  ALTER TABLE squad ADD COLUMN clause INTEGER;
+  `,
+  // v5: notificaciones push (suscripciones por dispositivo y último estado avisado)
+  `
+  CREATE TABLE IF NOT EXISTS push_subscriptions (
+    endpoint TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    p256dh TEXT NOT NULL,
+    auth TEXT NOT NULL,
+    created_at TEXT NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS notify_state (
+    user_id TEXT NOT NULL,
+    key TEXT NOT NULL,
+    value TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY (user_id, key)
   );
   `,
 ];

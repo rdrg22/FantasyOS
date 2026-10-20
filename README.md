@@ -73,13 +73,18 @@ Abre <http://localhost:3000>. Si `.env.local` tiene las tres variables de Supaba
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | clave publicable (`sb_publishable_…`) |
 | `SUPABASE_SECRET_KEY` | clave secreta (`sb_secret_…`). Márcala como secreta en Netlify |
 | `FOS_CRON_SECRET` | cadena larga aleatoria (la misma que en tu `.env.local`) |
+| `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | clave pública de avisos push (`npx web-push generate-vapid-keys`) |
+| `VAPID_PRIVATE_KEY` | clave privada de avisos push. Márcala como secreta en Netlify |
+| `VAPID_SUBJECT` | `https://<tu-sitio>.netlify.app` |
 
 3. Despliega. Entra en la URL de Netlify e inicia sesión.
 
 ### Sincronización automática en Netlify
 Las funciones programadas de `netlify/functions/` llaman a `/api/cron/daily` por pasos (cada petición cabe en el límite de tiempo de una función):
-- `daily-sync`: cada día a las 07:00 UTC → calendario, mercado, puntos y valor de tu plantilla.
-- `lineups-sync`: a las 07:20, 13:20 y 19:20 UTC → alineaciones probables por tandas.
+- `daily-sync`: cada día a las 07:00 UTC → calendario, resultados, mercado, puntos, valor de tu plantilla y avisos.
+- `lineups-sync`: a las 07:20, 13:20, 19:20 y 22:20 UTC → resultados, puntos, alineaciones probables por tandas y avisos.
+
+Los avisos push (lesiones, apercibidos, inicio de jornada, fallos de sincronización) se activan por dispositivo en «Datos y fuentes». En iPhone hace falta añadir la web a la pantalla de inicio.
 
 Desde la web, «Actualizar datos» hace lo mismo paso a paso, mostrando el progreso.
 
@@ -93,6 +98,7 @@ Copia `.env.example` a `.env.local`. Las claves secretas **solo se leen en el se
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | — | Clave publicable (solo para iniciar sesión desde el navegador) |
 | `SUPABASE_SECRET_KEY` | — | Clave secreta (solo servidor) |
 | `FOS_CRON_SECRET` | — | Protege `/api/cron/daily` (`Authorization: Bearer …` o `?secret=`). Sin ella solo se acepta desde `localhost`. |
+| `NEXT_PUBLIC_VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` | — | Avisos push (Web Push). Sin ellas, los avisos quedan desactivados. |
 | `FOS_DATA_DIR` | `./data` | Carpeta de las bases de datos SQLite (modo local). |
 | `FOS_ENABLE_FUTBOLFANTASY` | `true` | `false` desactiva la lectura de FútbolFantasy (trabajarás solo con datos manuales/CSV). |
 | `FOS_MIN_SYNC_INTERVAL_MIN` | `60` | Minutos mínimos entre dos sincronizaciones de la misma fuente (mín. 5). |

@@ -1,7 +1,7 @@
 import type { DatabaseSync } from "node:sqlite";
 import { randomUUID } from "node:crypto";
 import { tx } from "./sqlite";
-import { DEFAULT_SETTINGS, DomainError, today, type PlayerInput } from "./common";
+import { DEFAULT_SETTINGS, DomainError, today, type PlayerInput, type PushSubscriptionRow } from "./common";
 
 export { DEFAULT_SETTINGS, DomainError, today, type PlayerInput };
 import { normalizeName } from "../domain/normalize";
@@ -310,6 +310,7 @@ export class SqliteRepo {
       purchasePrice: Number(r.purchase_price),
       purchaseDate: String(r.purchase_date),
       notes: (r.notes as string) ?? null,
+      clause: num(r.clause),
     }));
   }
 
@@ -407,6 +408,25 @@ export class SqliteRepo {
     });
   }
 
+  /** Cambia la cláusula de un jugador tuyo; si has pagado por subirla, se descuenta del saldo. */
+  setClause(input: { playerId: string; clause: number; cost: number; date: string; notes?: string | null }) {
+    if (input.clause <= 0) throw new DomainError("La cláusula debe ser mayor que cero.");
+    if (input.cost < 0) throw new DomainError("El coste no puede ser negativo.");
+    return tx(this.db, () => {
+      const s = this.getSettings();
+      const player = this.getPlayer(input.playerId);
+      if (!player || !this.getSquad().some((x) => x.playerId === input.playerId)) throw new DomainError("Ese jugador no está en tu plantilla.", 404);
+      const after = s.budget - input.cost;
+      if (input.cost > 0 && after < 0) throw new DomainError(`Presupuesto insuficiente: te faltan ${Math.abs(after).toLocaleString("es-ES")} €.`, 422);
+      this.db.prepare("UPDATE squad SET clause=? WHERE user_id=? AND player_id=?").run(input.clause, this.userId, input.playerId);
+      if (input.cost > 0) {
+        this.insertTx("clausula", input.playerId, player.name, input.cost, input.date, input.notes ?? null);
+        this.saveSettingsRaw("budget", after);
+      }
+      return { budget: after };
+    });
+  }
+
   /** Fija el presupuesto y deja constancia del ajuste. */
   setBudget(budget: number, date: string, notes?: string | null) {
     return tx(this.db, () => {
@@ -490,6 +510,40 @@ export class SqliteRepo {
 
   clearListings(date: string) {
     this.db.prepare("DELETE FROM market_listings WHERE user_id=? AND date=?").run(this.userId, date);
+  }
+
+  // ───────────────────────── Notificaciones push ─────────────────────────
+
+  savePushSubscription(sub: { endpoint: string; p256dh: string; auth: string }) {
+    this.db
+      .prepare(`INSERT INTO push_subscriptions (endpoint, user_id, p256dh, auth, created_at) VALUES (?,?,?,?,?)
+        ON CONFLICT(endpoint) DO UPDATE SET user_id=excluded.user_id, p256dh=excluded.p256dh, auth=excluded.auth`)
+      .run(sub.endpoint, this.userId, sub.p256dh, sub.auth, now());
+  }
+
+  deletePushSubscription(endpoint: string) {
+    this.db.prepare("DELETE FROM push_subscriptions WHERE endpoint=?").run(endpoint);
+  }
+
+  /** Suscripciones de este usuario, o de todos con `all` (solo para el envío programado). */
+  listPushSubscriptions(all = false): PushSubscriptionRow[] {
+    const rows = (all
+      ? this.db.prepare("SELECT * FROM push_subscriptions").all()
+      : this.db.prepare("SELECT * FROM push_subscriptions WHERE user_id=?").all(this.userId)) as Row[];
+    return rows.map((r) => ({ userId: String(r.user_id), endpoint: String(r.endpoint), p256dh: String(r.p256dh), auth: String(r.auth) }));
+  }
+
+  getNotifyState(): Map<string, string> {
+    const rows = this.db.prepare("SELECT key, value FROM notify_state WHERE user_id=?").all(this.userId) as Row[];
+    return new Map(rows.map((r) => [String(r.key), String(r.value)]));
+  }
+
+  setNotifyState(entries: [string, string][]) {
+    const stmt = this.db.prepare(`INSERT INTO notify_state (user_id, key, value, updated_at) VALUES (?,?,?,?)
+      ON CONFLICT(user_id, key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at`);
+    tx(this.db, () => {
+      for (const [k, v] of entries) stmt.run(this.userId, k, v, now());
+    });
   }
 
   // ───────────────────────── Puntos por jornada ─────────────────────────

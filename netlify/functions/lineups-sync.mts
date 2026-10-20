@@ -21,12 +21,14 @@ export default async () => {
   await callStep("points");
   const exclude: string[] = [];
   const log: unknown[] = [];
-  while (Date.now() - started < 22_000) {
+  while (Date.now() - started < 16_000) {
     const r = await callStep("lineups", exclude.length ? { exclude: exclude.join(",") } : {});
     log.push(r);
     exclude.push(...(r.result?.failed ?? []));
     if (!r.ok || !r.result?.remaining) break;
   }
+  // Avisos con los estados recién actualizados (lesiones, apercibidos, inicio de jornada).
+  log.push(await callStep("notify"));
   console.log("[lineups-sync]", JSON.stringify(log));
   return new Response("ok");
 };

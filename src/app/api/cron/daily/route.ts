@@ -2,13 +2,14 @@ import { NextResponse } from "next/server";
 import { storeFor } from "@/lib/services/context";
 import { syncStep, SYNC_STEPS, type SyncKind } from "@/lib/services/sync";
 import { buildState } from "@/lib/services/state";
+import { notifyAll } from "@/lib/services/notify";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
  * Sincronización de los datos REALES, por pasos (cada llamada cabe en ~10 s):
- *   GET /api/cron/daily?step=fixtures|results|market|points|lineups|snapshot[&exclude=a-b,c-d][&force=1]
+ *   GET /api/cron/daily?step=fixtures|results|market|points|lineups|snapshot|notify[&exclude=a-b,c-d][&force=1]
  * Sin `step` ejecuta todos los pasos seguidos (solo recomendable en local).
  * Autorización: cabecera `Authorization: Bearer <FOS_CRON_SECRET>` o `?secret=`; sin secreto
  * configurado solo se acepta desde localhost.
@@ -32,6 +33,11 @@ export async function GET(req: Request) {
     const users = await shared.listUserIds();
     for (const u of users) await buildState(await storeFor("real", u), "real");
     return NextResponse.json({ ok: true, step, users: users.length });
+  }
+  if (step === "notify") {
+    // Avisos push (lesiones, apercibidos, inicio de jornada, fallos de sincronización).
+    const r = await notifyAll(shared, (u) => storeFor("real", u));
+    return NextResponse.json({ ok: true, step, ...r });
   }
   if (step) {
     if (!SYNC_STEPS.includes(step as SyncKind)) return NextResponse.json({ ok: false, error: "Paso no válido." }, { status: 400 });

@@ -8,6 +8,7 @@ import { fmtDateTime, timeAgo } from "@/lib/domain/time";
 import { Freshness, PageHeader, Section } from "@/components/ui";
 import { SyncButton } from "@/components/SyncButton";
 import { SettingsForm, DemoReset } from "@/components/SettingsForm";
+import { PushToggle } from "@/components/PushToggle";
 
 export default async function DatosPage() {
   const { repo, workspace } = await getRepo();
@@ -90,6 +91,9 @@ export default async function DatosPage() {
         </div>
 
         <div className="space-y-6">
+          <Section eyebrow="Móvil" title="Avisos" info="Notificaciones en el móvil o el ordenador aunque no tengas la app abierta. Se activan por dispositivo.">
+            <PushToggle />
+          </Section>
           <Section eyebrow="Tu cuenta" title="Ajustes">
             <SettingsForm teamName={s.settings.teamName} maxSquadSize={s.settings.maxSquadSize} />
           </Section>

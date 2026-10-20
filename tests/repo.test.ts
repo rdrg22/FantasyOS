@@ -141,3 +141,17 @@ describe("puntos por jornada", () => {
     expect(repo.getMatchdayPoints(9).sort((x, y) => x.points - y.points)).toEqual([{ playerId: a.id, points: 6 }, { playerId: b.id, points: 10 }]);
   });
 });
+
+describe("cláusulas", () => {
+  it("guarda la cláusula y descuenta del saldo lo pagado por subirla", () => {
+    repo.setBudget(5_000_000, "2026-10-19");
+    const p = mk("Ana Prueba", "MED", 2_000_000);
+    repo.buy({ playerId: p.id, price: 2_000_000, date: "2026-10-19" });
+    repo.setClause({ playerId: p.id, clause: 2_500_000, cost: 0, date: "2026-10-19" });
+    expect(repo.getSquad()[0].clause).toBe(2_500_000);
+    expect(repo.getSettings().budget).toBe(3_000_000);
+    expect(repo.setClause({ playerId: p.id, clause: 4_000_000, cost: 750_000, date: "2026-10-20" }).budget).toBe(2_250_000);
+    expect(repo.getTransactions().find((t) => t.type === "clausula")!.amount).toBe(750_000);
+    expect(() => repo.setClause({ playerId: p.id, clause: 9_000_000, cost: 5_000_000, date: "2026-10-20" })).toThrow(/Presupuesto insuficiente/);
+  });
+});

@@ -5,6 +5,13 @@ import type { SqliteRepo } from "./repo";
 
 export type PlayerInput = Omit<Player, "overridden" | "normName" | "yellowCards" | "redCards" | "warned"> & { normName?: string };
 
+export interface PushSubscriptionRow {
+  userId: string;
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+}
+
 export const DEFAULT_SETTINGS: Settings = {
   budget: 0,
   formation: "4-3-3",

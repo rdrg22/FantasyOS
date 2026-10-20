@@ -7,6 +7,7 @@ import { fmtDate } from "@/lib/domain/time";
 import { Delta, Empty, PosBadge, ProbBar, StatusBadge, TeamChip } from "../ui";
 import { Jersey } from "../Jersey";
 import { TradeButton } from "../TradeButton";
+import { ClauseCell, ClausulazoButton } from "./ClauseButtons";
 import { EditPlayerModal } from "./EditPlayerModal";
 import { useAction } from "../useAction";
 import { NextFixtures } from "../NextFixtures";
@@ -46,13 +47,14 @@ export function SquadTable({ rows, onAdd }: { rows: SquadRowView[]; onAdd: () =>
   return (
     <>
       <div className="-mx-4 overflow-x-auto">
-        <table className="table-compact w-full min-w-[760px]">
+        <table className="table-compact w-full min-w-[880px]">
           <thead>
             <tr>
               {th("pos", "Pos")}
               {th("name", "Jugador")}
               <th className="!text-right">Compra</th>
               {th("value", "Valor", true)}
+              <th className="!text-right">Cláusula</th>
               {th("pnl", "+/−", true)}
               {th("trend", "Tend. 3d", true)}
               <th>Estado</th>
@@ -79,6 +81,7 @@ export function SquadTable({ rows, onAdd }: { rows: SquadRowView[]; onAdd: () =>
                   <div className="text-[10.5px] text-dim">{fmtDate(r.purchaseDate)}</div>
                 </td>
                 <td className="num whitespace-nowrap text-right font-semibold" title={fmtMoney(r.value)}>{fmtCompact(r.value)}</td>
+                <td className="whitespace-nowrap text-right"><ClauseCell playerId={r.player.id} playerName={r.player.name} clause={r.clause} value={r.value} /></td>
                 <td className={`num whitespace-nowrap text-right ${r.pnl >= 0 ? "text-up" : "text-down"}`}>
                   {fmtSigned(r.pnl)}
                   <div className="text-[10.5px] opacity-75">{fmtPct(r.pnlPct)}</div>
@@ -90,6 +93,7 @@ export function SquadTable({ rows, onAdd }: { rows: SquadRowView[]; onAdd: () =>
                 <td>
                   <div className="flex justify-end gap-1">
                     <TradeButton mode="sell" small playerId={r.player.id} playerName={r.player.name} suggestedPrice={r.value} label="Vender" />
+                    <ClausulazoButton playerId={r.player.id} playerName={r.player.name} clause={r.clause} value={r.value} />
                     <button className="btn-ghost !px-2 !py-1" title="Editar datos" onClick={() => setEdit(r)}>
                       <Pencil size={13} />
                     </button>

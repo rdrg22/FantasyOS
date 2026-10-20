@@ -29,7 +29,7 @@ export interface SyncResult {
   failed?: string[];
 }
 
-const SOURCE: Record<SyncKind, string> = { market: "futbolfantasy", points: "futbolfantasy", fixtures: "calendario", results: "futbolfantasy", lineups: "futbolfantasy" };
+export const SYNC_SOURCE: Record<SyncKind, string> = { market: "futbolfantasy", points: "futbolfantasy", fixtures: "calendario", results: "futbolfantasy", lineups: "futbolfantasy" };
 
 export function ffEnabled() {
   return (process.env.FOS_ENABLE_FUTBOLFANTASY ?? "true").toLowerCase() !== "false";
@@ -47,7 +47,7 @@ export function currentSeason(d = new Date()): string {
 }
 
 async function run(repo: Store, kind: SyncKind, force: boolean, fn: () => Promise<{ count: number; message: string }>): Promise<SyncResult> {
-  const source = SOURCE[kind];
+  const source = SYNC_SOURCE[kind];
   const last = await repo.lastSync(source, kind);
   if (!force && last?.finishedAt && Date.now() - Date.parse(last.finishedAt) < minIntervalMs()) {
     return { kind, status: "skipped", message: `Actualizado hace menos de ${Math.round(minIntervalMs() / 60000)} min; no se repite la petición.`, count: 0 };

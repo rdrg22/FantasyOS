@@ -44,7 +44,7 @@ export default async function AlineacionPage() {
     <>
       <PageHeader
         eyebrow={md ? `Jornada ${md.matchday} · ${md.firstKickoff ? `cierre aprox. ${fmtDateTime(md.firstKickoff)}` : "horario por confirmar"}` : "Próxima jornada"}
-        title="Once ideal"
+        title="Mi once"
         subtitle="El once que maximiza los puntos esperados con tu plantilla. Se basa en alineaciones PROBABLES y estimaciones: no es una alineación oficial confirmada."
       />
       {s.squad.length === 0 ? (

@@ -1,10 +1,11 @@
 import Link from "next/link";
-import { ArrowRight, BellRing, CalendarClock, CheckCircle2, Coins, Wallet, Zap } from "lucide-react";
+import { AlertTriangle, ArrowRight, BellRing, CalendarClock, CheckCircle2, Coins, Wallet, Zap } from "lucide-react";
 import { getRepo } from "@/lib/services/context";
 import { buildState } from "@/lib/services/state";
 import { topDecisions } from "@/lib/analytics/recommendations";
 import { fmtCompact, fmtMoney, fmtPct, fmtSigned } from "@/lib/domain/money";
-import { fmtDateTime, fmtDate, madridToIso } from "@/lib/domain/time";
+import { fmtDateTime, fmtDate, madridToIso, timeAgo } from "@/lib/domain/time";
+import { syncIssues } from "@/lib/services/health";
 import { getTeam } from "@/lib/domain/teams";
 import { STATUS_LABEL } from "@/lib/domain/types";
 import { Empty, Kpi, PageHeader, PosBadge, Section } from "@/components/ui";
@@ -14,7 +15,7 @@ import { SyncButton } from "@/components/SyncButton";
 
 export default async function Dashboard() {
   const { repo, workspace } = await getRepo();
-  const s = await buildState(repo, workspace);
+  const [s, issues] = await Promise.all([buildState(repo, workspace), workspace === "real" ? syncIssues(repo) : Promise.resolve([])]);
   const actionable = s.recommendations.filter((r) => r.action !== "MANTENER");
   const top3 = topDecisions(s.recommendations, 3);
   const teamOf = (id: string | null) => (id ? s.analyses.get(id)?.player.teamId ?? null : null);
@@ -32,6 +33,7 @@ export default async function Dashboard() {
       else if (a.player.status === "duda") tags.push({ text: "Duda", tone: "gold" });
       else if (a.pPlaySource !== "supuesto" && a.pPlay < 0.5) tags.push({ text: `${Math.round(a.pPlay * 100)}% juega`, tone: "gold" });
       if (a.player.warned && a.player.status !== "sancionado") tags.push({ text: "Apercibido", tone: "gold" });
+      if (r.entry.clause != null && r.entry.clause < r.value * 1.25) tags.push({ text: "Cláusula baja", tone: "gold" });
       const drop = a.trend.pct3 ?? a.trend.pct1;
       if (a.trend.direction === "baja" || (a.trend.pct1 ?? 0) < -1) tags.push({ text: `${fmtPct(drop)} valor`, tone: "down" });
       return { r, tags, severity: tags.filter((t) => t.tone === "down").length * 2 + tags.length + (r.inLineup ? 1 : 0) };
@@ -47,6 +49,28 @@ export default async function Dashboard() {
         subtitle="Decisiones priorizadas según tu plantilla, tu presupuesto, el mercado y la próxima jornada. Son estimaciones, no certezas: abre cada una para ver motivos y riesgos."
         actions={workspace === "real" && <SyncButton kind="all" label="Actualizar datos" />}
       />
+
+      {issues.length > 0 && (
+        <div role="alert" className="mb-6 flex gap-3 rounded-xl border border-down/40 bg-down/10 px-4 py-3 text-[13px]">
+          <AlertTriangle size={18} className="mt-0.5 shrink-0 text-down" />
+          <div className="min-w-0">
+            <div className="font-semibold text-down">
+              {issues.some((i) => i.type === "error") ? "No se han podido actualizar algunos datos" : "Hay datos sin actualizar"}
+            </div>
+            <ul className="mt-1 space-y-0.5 text-fg/85">
+              {issues.map((i) => (
+                <li key={i.kind} className="break-words">
+                  <b>{i.label}</b>:{" "}
+                  {i.type === "error" ? <>falló {i.at ? timeAgo(i.at) : ""}{i.message && <span className="text-muted"> · {i.message.length > 160 ? i.message.slice(0, 160) + "…" : i.message}</span>}</> : <>última actualización {i.at ? timeAgo(i.at) : "desconocida"}</>}
+                </li>
+              ))}
+            </ul>
+            <p className="mt-1.5 text-muted">
+              Las recomendaciones pueden basarse en datos viejos. Prueba «Actualizar datos» o revisa <Link href="/datos" className="text-cyan underline">Datos y fuentes</Link>.
+            </p>
+          </div>
+        </div>
+      )}
 
       {isEmpty && (
         <div className="panel mb-6 p-6">

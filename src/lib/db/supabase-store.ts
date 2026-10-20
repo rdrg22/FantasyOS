@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { randomUUID } from "node:crypto";
-import { DEFAULT_SETTINGS, DomainError, today, type PlayerInput, type Store } from "./common";
+import { DEFAULT_SETTINGS, DomainError, today, type PlayerInput, type PushSubscriptionRow, type Store } from "./common";
 import { normalizeName } from "../domain/normalize";
 import { formationSlots } from "../domain/formations";
 import type {
@@ -334,7 +334,7 @@ export class SupabaseStore implements Store {
   async getSquad(): Promise<SquadEntry[]> {
     const { data, error } = await this.sb.from("squad").select("*").eq("user_id", this.userId).eq("ws", this.ws).order("purchase_date");
     fail(error, "squad");
-    return ((data as Row[]) ?? []).map((r) => ({ playerId: String(r.player_id), purchasePrice: Number(r.purchase_price), purchaseDate: String(r.purchase_date), notes: (r.notes as string) ?? null }));
+    return ((data as Row[]) ?? []).map((r) => ({ playerId: String(r.player_id), purchasePrice: Number(r.purchase_price), purchaseDate: String(r.purchase_date), notes: (r.notes as string) ?? null, clause: num(r.clause) }));
   }
 
   async addToSquad(e: SquadEntry): Promise<void> {
@@ -379,6 +379,13 @@ export class SupabaseStore implements Store {
     if (!(await this.getPlayer(input.playerId))) throw new DomainError("Jugador no encontrado", 404);
     const r = await this.rpc<{ budget: number; profit: number }>("fos_sell", { p_user: this.userId, p_ws: this.ws, p_player: input.playerId, p_price: input.price, p_date: input.date, p_notes: input.notes ?? null });
     return { budget: Number(r.budget), profit: Number(r.profit) };
+  }
+
+  async setClause(input: { playerId: string; clause: number; cost: number; date: string; notes?: string | null }): Promise<{ budget: number }> {
+    const r = await this.rpc<{ budget: number }>("fos_set_clause", {
+      p_user: this.userId, p_ws: this.ws, p_player: input.playerId, p_clause: input.clause, p_cost: input.cost, p_date: input.date, p_notes: input.notes ?? null,
+    });
+    return { budget: Number(r.budget) };
   }
 
   async setBudget(budget: number, date: string, notes?: string | null): Promise<{ budget: number; diff: number }> {
@@ -462,6 +469,38 @@ export class SupabaseStore implements Store {
   async clearListings(date: string): Promise<void> {
     const { error } = await this.sb.from("market_listings").delete().eq("user_id", this.userId).eq("ws", this.ws).eq("date", date);
     fail(error, "listings");
+  }
+
+  // ───────────────────────── Notificaciones push ─────────────────────────
+
+  async savePushSubscription(sub: { endpoint: string; p256dh: string; auth: string }): Promise<void> {
+    const { error } = await this.sb.from("push_subscriptions").upsert({ endpoint: sub.endpoint, user_id: this.userId, p256dh: sub.p256dh, auth: sub.auth }, { onConflict: "endpoint" });
+    fail(error, "push_subscriptions");
+  }
+
+  async deletePushSubscription(endpoint: string): Promise<void> {
+    const { error } = await this.sb.from("push_subscriptions").delete().eq("endpoint", endpoint);
+    fail(error, "push_subscriptions");
+  }
+
+  async listPushSubscriptions(all = false): Promise<PushSubscriptionRow[]> {
+    const rows = await this.all((a, b) => {
+      const q = this.sb.from("push_subscriptions").select("*");
+      return (all ? q : q.eq("user_id", this.userId)).range(a, b);
+    }, "push_subscriptions");
+    return rows.map((r) => ({ userId: String(r.user_id), endpoint: String(r.endpoint), p256dh: String(r.p256dh), auth: String(r.auth) }));
+  }
+
+  async getNotifyState(): Promise<Map<string, string>> {
+    const rows = await this.all((a, b) => this.sb.from("notify_state").select("key,value").eq("user_id", this.userId).range(a, b), "notify_state");
+    return new Map(rows.map((r) => [String(r.key), String(r.value)]));
+  }
+
+  async setNotifyState(entries: [string, string][]): Promise<void> {
+    if (!entries.length) return;
+    const now = nowIso();
+    const { error } = await this.sb.from("notify_state").upsert(entries.map(([key, value]) => ({ user_id: this.userId, key, value, updated_at: now })), { onConflict: "user_id,key" });
+    fail(error, "notify_state");
   }
 
   // ───────────────────────── Puntos por jornada ─────────────────────────

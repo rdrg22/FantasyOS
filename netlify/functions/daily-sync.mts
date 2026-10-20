@@ -12,10 +12,10 @@ async function callStep(step: string, extra: Record<string, string> = {}): Promi
   }
 }
 
-/** Cada día a las 07:00 UTC (08:00/09:00 en Madrid): calendario, resultados, mercado, puntos y valor de plantilla. */
+/** Cada día a las 07:00 UTC (08:00/09:00 en Madrid): calendario, resultados, mercado, puntos, valor de plantilla y avisos. */
 export default async () => {
   const out: Record<string, unknown> = {};
-  for (const step of ["fixtures", "results", "market", "points", "snapshot"]) out[step] = await callStep(step);
+  for (const step of ["fixtures", "results", "market", "points", "snapshot", "notify"]) out[step] = await callStep(step);
   console.log("[daily-sync]", JSON.stringify(out));
   return new Response("ok");
 };

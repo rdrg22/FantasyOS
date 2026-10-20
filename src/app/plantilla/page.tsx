@@ -12,6 +12,7 @@ export default async function PlantillaPage() {
     purchasePrice: r.entry.purchasePrice,
     purchaseDate: r.entry.purchaseDate,
     notes: r.entry.notes,
+    clause: r.entry.clause ?? null,
     value: r.value,
     pnl: r.pnl.diff,
     pnlPct: r.pnl.pct,

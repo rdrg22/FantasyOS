@@ -19,8 +19,11 @@ const METHOD: [string, string][] = [
   ["Probabilidad de jugar", "Alineación probable si existe; si no, el % publicado por la fuente; si no, los partidos recientes. Lesionados, sancionados o equipos sin partido cuentan como 0."],
   ["Compras", "«Para revalorizar» si el precio sube con fuerza y el jugador juega; «para puntuar» si mejora a tu titular más flojo de esa posición en al menos 0,8 puntos esperados."],
   ["Viabilidad", "Si no te llega el saldo o tienes la plantilla llena, se busca la venta menos dolorosa (suplentes con peor perspectiva) sin dejarte sin jugadores para alinear. Ninguna compra recomendada deja el saldo en negativo."],
-  ["Ventas", "Se recomienda vender a quien cae con fuerza o en aceleración, está lesionado o apenas juega, sobre todo si no está en tu once ideal."],
-  ["Once ideal", "Para cada formación se eligen los jugadores con más puntos esperados por línea y gana la formación que más suma."],
+  ["Ventas", "Se recomienda vender a quien cae con fuerza o en aceleración, está lesionado o apenas juega, sobre todo si no está en tu once recomendado."],
+  ["Mi once", "Para cada formación se eligen los jugadores de tu plantilla con más puntos esperados por línea y gana la formación que más suma."],
+  ["Cláusula", "La apuntas tú en «Mi equipo». «Fácil de robar» si es menos de 1,25 veces su valor de mercado; «bien protegido» desde 1,6 veces. Si pagas por subirla, se descuenta del saldo. «Clausulazo» registra que otro mánager te lo ha quitado pagándola: sale de tu plantilla y cobras la cláusula."],
+  ["Avisos", "Se activan en «Datos y fuentes», por dispositivo. En iPhone hace falta tener la app añadida a la pantalla de inicio."],
+  ["Once ideal (Liga)", "Los once jugadores de toda la liga que más puntos hicieron en una jornada ya jugada, en la formación que más suma."],
 ];
 
 const SOURCES: [string, string, string][] = [

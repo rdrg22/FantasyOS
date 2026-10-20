@@ -89,9 +89,11 @@ export interface SquadEntry {
   purchasePrice: number;
   purchaseDate: string;
   notes: string | null;
+  /** Cláusula de rescisión en tu liga (la introduces tú) */
+  clause?: number | null;
 }
 
-export type TransactionType = "compra" | "venta" | "ajuste";
+export type TransactionType = "compra" | "venta" | "ajuste" | "clausula";
 export interface Transaction {
   id: number;
   type: TransactionType;

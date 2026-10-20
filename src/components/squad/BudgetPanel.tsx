@@ -60,7 +60,7 @@ export function BudgetPanel({ budget, transactions, balance }: { budget: number;
                     <tr key={t.id}>
                       <td className="num text-muted">{fmtDate(t.date)}</td>
                       <td>
-                        <span className={`rounded px-1.5 py-0.5 font-mono text-[10.5px] uppercase ${t.type === "compra" ? "bg-down/10 text-down" : t.type === "venta" ? "bg-up/10 text-up" : "bg-ink-700 text-muted"}`}>{t.type}</span>
+                        <span className={`rounded px-1.5 py-0.5 font-mono text-[10.5px] uppercase ${t.type === "compra" || t.type === "clausula" ? "bg-down/10 text-down" : t.type === "venta" ? "bg-up/10 text-up" : "bg-ink-700 text-muted"}`}>{t.type === "clausula" ? "cláusula" : t.type}</span>
                       </td>
                       <td>
                         {t.playerName}

@@ -9,6 +9,7 @@ import { remapLineup } from "../domain/formations";
 import { buildState } from "./state";
 import { seedDemo } from "./demo";
 import { matchPlayer, syncStep } from "./sync";
+import { pushEnabled, sendPush } from "./notify";
 import type { Workspace } from "../domain/types";
 
 // ───────── Esquemas de validación ─────────
@@ -31,7 +32,11 @@ export const ActionSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("buy"), playerId, price: money.min(1, "El precio debe ser mayor que cero"), date, notes: z.string().max(200).nullable().optional(), allowNegative: z.boolean().optional() }),
   z.object({ type: z.literal("sell"), playerId, price: money, date, notes: z.string().max(200).nullable().optional() }),
   z.object({ type: z.literal("setBudget"), budget: z.number().int().min(-500_000_000).max(500_000_000), notes: z.string().max(200).nullable().optional() }),
+  z.object({ type: z.literal("setClause"), playerId, clause: money.min(1, "Indica la cláusula"), cost: money.default(0), date, notes: z.string().max(200).nullable().optional() }),
   z.object({ type: z.literal("deleteTransaction"), id: z.number().int() }),
+  z.object({ type: z.literal("pushSubscribe"), endpoint: z.url().max(1000), p256dh: z.string().min(10).max(200), auth: z.string().min(8).max(100) }),
+  z.object({ type: z.literal("pushUnsubscribe"), endpoint: z.url().max(1000) }),
+  z.object({ type: z.literal("pushTest") }),
   z.object({ type: z.literal("saveLineup"), formation: z.enum(FORMATIONS as [string, ...string[]]), useCoach: z.boolean(), lineup: z.record(z.string(), z.string().nullable()) }),
   z.object({ type: z.literal("changeFormation"), formation: z.enum(FORMATIONS as [string, ...string[]]), useCoach: z.boolean() }),
   z.object({ type: z.literal("applyRecommendedLineup") }),
@@ -86,6 +91,23 @@ export async function runAction(repo: Store, workspace: Workspace, a: Action): P
     case "setBudget": {
       const r = await repo.setBudget(a.budget, today(), a.notes);
       return { message: `Presupuesto fijado en ${r.budget.toLocaleString("es-ES")} €.`, data: r };
+    }
+    case "setClause": {
+      const r = await repo.setClause({ playerId: a.playerId, clause: a.clause, cost: a.cost, date: a.date, notes: a.notes });
+      return { message: a.cost > 0 ? `Cláusula subida a ${a.clause.toLocaleString("es-ES")} €. Saldo: ${r.budget.toLocaleString("es-ES")} €.` : `Cláusula guardada: ${a.clause.toLocaleString("es-ES")} €.`, data: r };
+    }
+    case "pushSubscribe": {
+      if (!pushEnabled()) throw new DomainError("Los avisos no están configurados en el servidor (faltan las claves VAPID).", 503);
+      await repo.savePushSubscription({ endpoint: a.endpoint, p256dh: a.p256dh, auth: a.auth });
+      return { message: "Avisos activados en este dispositivo." };
+    }
+    case "pushUnsubscribe":
+      await repo.deletePushSubscription(a.endpoint);
+      return { message: "Avisos desactivados en este dispositivo." };
+    case "pushTest": {
+      const n = await sendPush(repo, await repo.listPushSubscriptions(), { title: "🔔 Avisos de Fantasy OS activados", body: "Así te llegarán las lesiones, apercibidos y el inicio de cada jornada.", url: "/", tag: "test" });
+      if (n === 0) throw new DomainError("No se pudo enviar el aviso de prueba: activa los avisos en este dispositivo.", 422);
+      return { message: `Aviso de prueba enviado a ${n} ${n === 1 ? "dispositivo" : "dispositivos"}.` };
     }
     case "deleteTransaction":
       await repo.deleteTransaction(a.id);

@@ -20,6 +20,7 @@ export interface SquadRowView {
   purchasePrice: number;
   purchaseDate: string;
   notes: string | null;
+  clause: number | null;
   value: number;
   pnl: number;
   pnlPct: number | null;

@@ -12,7 +12,7 @@ const NAV = [
   { href: "/recomendaciones", label: "Recomendaciones", icon: Sparkles, hint: "Comprar · vender · vigilar" },
   { href: "/plantilla", label: "Mi equipo", icon: Users, hint: "Plantilla y presupuesto" },
   { href: "/mercado", label: "Mercado", icon: ShoppingCart, hint: "Precios y oportunidades" },
-  { href: "/alineacion", label: "Once ideal", icon: Shirt, hint: "Recomendador de alineación" },
+  { href: "/alineacion", label: "Mi once", icon: Shirt, hint: "Recomendador de alineación" },
   { href: "/jornada", label: "Jornada", icon: CalendarDays, hint: "Partidos y alineaciones probables" },
   { href: "/liga", label: "Liga", icon: Trophy, hint: "Resultados, clasificación y tarjetas" },
   { href: "/datos", label: "Datos y fuentes", icon: Database, hint: "Sincronización y ajustes" },
