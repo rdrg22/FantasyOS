@@ -492,6 +492,31 @@ export class SqliteRepo {
     this.db.prepare("DELETE FROM market_listings WHERE user_id=? AND date=?").run(this.userId, date);
   }
 
+  // ───────────────────────── Puntos por jornada ─────────────────────────
+
+  saveMatchdayPoints(matchday: number, rows: { playerId: string; points: number }[]): number {
+    const stmt = this.db.prepare(`
+      INSERT INTO matchday_points (matchday, player_id, points, updated_at) VALUES (?,?,?,?)
+      ON CONFLICT(matchday, player_id) DO UPDATE SET points=excluded.points, updated_at=excluded.updated_at`);
+    const now = new Date().toISOString();
+    return tx(this.db, () => {
+      for (const r of rows) stmt.run(matchday, r.playerId, r.points, now);
+      return rows.length;
+    });
+  }
+
+  getMatchdayPoints(matchday: number): { playerId: string; points: number }[] {
+    return (this.db.prepare("SELECT player_id, points FROM matchday_points WHERE matchday = ?").all(matchday) as Row[]).map((r) => ({
+      playerId: String(r.player_id),
+      points: Number(r.points),
+    }));
+  }
+
+  /** Jornadas con puntos guardados, en orden ascendente. */
+  pointsMatchdays(): number[] {
+    return (this.db.prepare("SELECT DISTINCT matchday FROM matchday_points ORDER BY matchday").all() as Row[]).map((r) => Number(r.matchday));
+  }
+
   // ───────────────────────── Calendario ─────────────────────────
 
   upsertFixtures(fx: Fixture[]): number {
@@ -625,7 +650,7 @@ export class SqliteRepo {
   resetWorkspace() {
     this.db.exec(`DELETE FROM players; DELETE FROM player_overrides; DELETE FROM price_snapshots; DELETE FROM squad; DELETE FROM transactions;
       DELETE FROM market_listings; DELETE FROM fixtures; DELETE FROM probable_lineups; DELETE FROM settings;
-      DELETE FROM squad_value_history; DELETE FROM sync_log;`);
+      DELETE FROM squad_value_history; DELETE FROM sync_log; DELETE FROM matchday_points;`);
   }
 
   /** Inserta una operación histórica sin mover el saldo (solo para cargas de datos). */

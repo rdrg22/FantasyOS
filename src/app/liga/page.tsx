@@ -4,10 +4,13 @@ import { isPlayed } from "@/lib/analytics/fixtures";
 import { PageHeader, Section, TeamChip } from "@/components/ui";
 import { LeagueResults, type MatchdayResults } from "@/components/league/LeagueResults";
 import { CardsBoard, type CardRow } from "@/components/league/CardsBoard";
+import { IdealEleven, type IdealElevenProps } from "@/components/league/IdealEleven";
+import { idealEleven, type PointsEntry } from "@/lib/analytics/ideal";
+import type { PitchSlot } from "@/components/Pitch";
 
-export default async function LigaPage() {
+export default async function LigaPage({ searchParams }: { searchParams: Promise<{ j?: string }> }) {
   const { repo, workspace } = await getRepo();
-  const [s, fixtures] = await Promise.all([buildState(repo, workspace), repo.getFixtures()]);
+  const [s, fixtures, pointMds, sp] = await Promise.all([buildState(repo, workspace), repo.getFixtures(), repo.pointsMatchdays(), searchParams]);
 
   // Jornadas con su lista de partidos; por defecto se abre la última con algún resultado.
   const byMd = new Map<number, MatchdayResults["matches"]>();
@@ -38,16 +41,61 @@ export default async function LigaPage() {
     }));
   const table = tableView(s.calendar.table);
 
+  // Once ideal: jornada pedida (?j=) o la última con puntos guardados.
+  let ideal: IdealElevenProps | null = null;
+  const wanted = Number(sp.j);
+  const md = pointMds.includes(wanted) ? wanted : pointMds.at(-1);
+  if (md != null) {
+    const entries: (PointsEntry & { a: NonNullable<ReturnType<typeof s.analyses.get>> })[] = [];
+    for (const r of await repo.getMatchdayPoints(md)) {
+      const a = s.analyses.get(r.playerId);
+      if (a) entries.push({ playerId: r.playerId, position: a.player.position, points: r.points, a });
+    }
+    const best = idealEleven(entries);
+    if (best) {
+      const byId = new Map(entries.map((e) => [e.playerId, e.a]));
+      const slots: PitchSlot[] = best.slots.map((x) => {
+        const a = byId.get(x.playerId)!;
+        return {
+          slot: x.slot,
+          position: x.position,
+          player: { id: a.player.id, name: a.player.shortName || a.player.name, teamId: a.player.teamId, position: a.player.position, xp: a.xp, pPlay: a.pPlay, status: a.player.status, score: x.points },
+        };
+      });
+      const myBest = idealEleven(entries.filter((e) => mine.has(e.playerId)));
+      const mdFixtures = fixtures.filter((f) => f.matchday === md);
+      ideal = {
+        matchday: md,
+        matchdays: pointMds,
+        inProgress: mdFixtures.some((f) => !isPlayed(f)),
+        formation: best.formation,
+        total: best.total,
+        slots,
+        mineSlots: best.slots.filter((x) => mine.has(x.playerId)).map((x) => x.slot),
+        myBest: myBest ? { total: myBest.total, formation: myBest.formation } : null,
+      };
+    }
+  }
+
   return (
     <>
       <PageHeader
         eyebrow="LaLiga"
         title="Liga"
-        subtitle="Resultados por jornada, clasificación y tarjetas de los jugadores. Se actualiza solo varias veces al día."
+        subtitle="Resultados por jornada, once ideal, clasificación y tarjetas de los jugadores. Se actualiza solo varias veces al día."
       />
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <div className="space-y-6">
           <LeagueResults matchdays={matchdays} initial={initial} />
+          {ideal ? (
+            <IdealEleven {...ideal} />
+          ) : (
+            <Section title="Once ideal">
+              <p className="py-4 text-center text-sm text-muted">Aún no hay puntos de ninguna jornada: se guardan al sincronizar los puntos tras cada jornada.</p>
+            </Section>
+          )}
+        </div>
+        <div className="space-y-6">
           <Section
             title="Clasificación"
             info="Calculada con los resultados disponibles. Puede ir algo por detrás de la oficial si la fuente aún no tiene algún resultado. Se usa para estimar la dificultad de cada rival."
@@ -69,8 +117,8 @@ export default async function LigaPage() {
               </tbody>
             </table>
           </Section>
+          <CardsBoard rows={cards} />
         </div>
-        <CardsBoard rows={cards} />
       </div>
     </>
   );

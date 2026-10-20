@@ -12,11 +12,13 @@ async function callStep(step: string, extra: Record<string, string> = {}): Promi
   }
 }
 
-/** Resultados y alineaciones probables (con tarjetas) 3 veces al día, por tandas. */
+/** Resultados, puntos y alineaciones probables (con tarjetas) varias veces al día, por tandas. */
 export default async () => {
   const started = Date.now();
   // Los resultados se refrescan también aquí (3 veces al día) para tenerlos al terminar cada partido.
   await callStep("results");
+  // Y los puntos, para tener el once ideal de la jornada en cuanto la fuente los publica.
+  await callStep("points");
   const exclude: string[] = [];
   const log: unknown[] = [];
   while (Date.now() - started < 22_000) {

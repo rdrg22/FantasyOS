@@ -15,6 +15,8 @@ export interface PitchPlayer {
   status: PlayerStatus;
   sub?: string;
   alert?: string | null;
+  /** Puntos reales de una jornada: se muestran en lugar de los esperados y sin barra de probabilidad */
+  score?: number;
 }
 
 export interface PitchSlot {
@@ -127,7 +129,7 @@ function SlotCard({
 
   const team = getTeam(p.teamId);
   const pct = Math.round(p.pPlay * 100);
-  const bad = p.status === "lesionado" || p.status === "sancionado" || !!p.alert;
+  const bad = p.score == null && (p.status === "lesionado" || p.status === "sancionado" || !!p.alert);
   return (
     <div
       {...dnd}
@@ -138,7 +140,7 @@ function SlotCard({
       }}
       onClick={onClick}
       className={`group relative w-[60px] cursor-pointer select-none min-[400px]:w-[68px] sm:w-[104px] ${readOnly ? "cursor-default" : "active:scale-[0.98]"}`}
-      title={p.alert ?? `${p.name} · ${p.xp.toFixed(1)} pts esperados · ${pct}% de jugar`}
+      title={p.alert ?? (p.score != null ? `${p.name} · ${p.score} pts` : `${p.name} · ${p.xp.toFixed(1)} pts esperados · ${pct}% de jugar`)}
     >
       <Jersey teamId={p.teamId} size={40} className="relative z-10 mx-auto -mb-2 drop-shadow-[0_3px_4px_rgba(0,0,0,0.5)] sm:h-[52px] sm:w-[52px]" title={team?.name} />
       <div
@@ -150,11 +152,13 @@ function SlotCard({
           <div className="truncate text-center text-[10.5px] font-semibold leading-tight sm:text-[12.5px]">{p.name}</div>
           <div className="mt-0.5 flex items-center justify-between font-mono text-[9.5px] text-white/60">
             <span>{team?.short ?? "—"}</span>
-            <span className="text-gold">{p.xp.toFixed(1)}</span>
+            {p.score != null ? <span className="font-semibold text-up">{p.score}<span className="hidden sm:inline"> pts</span></span> : <span className="text-gold">{p.xp.toFixed(1)}</span>}
           </div>
-          <div className="mt-1 h-1 overflow-hidden rounded-full bg-white/10">
-            <div className={`h-full ${pct >= 70 ? "bg-up" : pct >= 40 ? "bg-gold" : "bg-down"}`} style={{ width: `${pct}%` }} />
-          </div>
+          {p.score == null && (
+            <div className="mt-1 h-1 overflow-hidden rounded-full bg-white/10">
+              <div className={`h-full ${pct >= 70 ? "bg-up" : pct >= 40 ? "bg-gold" : "bg-down"}`} style={{ width: `${pct}%` }} />
+            </div>
+          )}
           {p.sub && <div className="mt-1 truncate text-center text-[9.5px] text-white/50">{p.sub}</div>}
         </div>
       </div>

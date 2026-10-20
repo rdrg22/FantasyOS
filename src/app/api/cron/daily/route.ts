@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 /**
  * Sincronización de los datos REALES, por pasos (cada llamada cabe en ~10 s):
- *   GET /api/cron/daily?step=fixtures|market|points|lineups|snapshot[&exclude=a-b,c-d][&force=1]
+ *   GET /api/cron/daily?step=fixtures|results|market|points|lineups|snapshot[&exclude=a-b,c-d][&force=1]
  * Sin `step` ejecuta todos los pasos seguidos (solo recomendable en local).
  * Autorización: cabecera `Authorization: Bearer <FOS_CRON_SECRET>` o `?secret=`; sin secreto
  * configurado solo se acepta desde localhost.

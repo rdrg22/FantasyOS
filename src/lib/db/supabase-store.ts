@@ -464,6 +464,28 @@ export class SupabaseStore implements Store {
     fail(error, "listings");
   }
 
+  // ───────────────────────── Puntos por jornada ─────────────────────────
+
+  async saveMatchdayPoints(matchday: number, rows: { playerId: string; points: number }[]): Promise<number> {
+    const now = nowIso();
+    const payload = rows.map((r) => ({ ws: this.ws, matchday, player_id: r.playerId, points: r.points, updated_at: now }));
+    for (const c of chunks(payload, 500)) {
+      const { error } = await this.sb.from("matchday_points").upsert(c, { onConflict: "ws,matchday,player_id" });
+      fail(error, "matchday_points");
+    }
+    return rows.length;
+  }
+
+  async getMatchdayPoints(matchday: number): Promise<{ playerId: string; points: number }[]> {
+    const rows = await this.all((a, b) => this.sb.from("matchday_points").select("player_id,points").eq("ws", this.ws).eq("matchday", matchday).range(a, b), "matchday_points");
+    return rows.map((r) => ({ playerId: String(r.player_id), points: Number(r.points) }));
+  }
+
+  async pointsMatchdays(): Promise<number[]> {
+    const rows = await this.rpc<number[] | { fos_points_matchdays: number }[]>("fos_points_matchdays", { p_ws: this.ws });
+    return (rows ?? []).map((r) => Number(typeof r === "object" ? Object.values(r)[0] : r)).sort((a, b) => a - b);
+  }
+
   // ───────────────────────── Calendario ─────────────────────────
 
   async upsertFixtures(fx: Fixture[]): Promise<number> {

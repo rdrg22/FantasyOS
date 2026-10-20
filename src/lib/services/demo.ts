@@ -131,6 +131,19 @@ export async function seedDemo(repo: Store, now = new Date()): Promise<{ players
   // Las escrituras independientes van en paralelo para que quepa en una función serverless.
   await Promise.all([repo.upsertFixtures(fixtures), repo.upsertPlayers(players)]);
   await Promise.all([...byDate].map(([date, list]) => repo.recordSnapshots(list, date, "demo")));
+  // Puntos por jornada (ficticios) de las 3 últimas jornadas jugadas, para el once ideal.
+  const playedMds = [...new Set(fixtures.filter((f) => f.homeScore != null).map((f) => f.matchday))].sort((a, b) => b - a).slice(0, 3);
+  await Promise.all(
+    playedMds.map((md, i) =>
+      repo.saveMatchdayPoints(
+        md,
+        players.map((p) => ({
+          playerId: p.id,
+          points: i === 0 ? p.lastPoints! : (p.matchesPlayed ?? 0) > 0 ? Math.round((p.pointsAvg ?? 2) + (r() - 0.5) * 8) : 0,
+        })),
+      ),
+    ),
+  );
   // Tarjetas ficticias (algunos apercibidos con 4 amarillas)
   await repo.updateDiscipline(
     players.map((p) => {

@@ -129,3 +129,15 @@ describe("tarjetas y resultados", () => {
     expect(repo.getFixtures()[0]).toMatchObject({ homeScore: 2, awayScore: 1 });
   });
 });
+
+describe("puntos por jornada", () => {
+  it("guarda, actualiza y lista los puntos de cada jornada", () => {
+    const a = mk("Ana Prueba", "MED", 1_000_000);
+    const b = mk("Bea Prueba", "DEL", 1_000_000);
+    repo.saveMatchdayPoints(9, [{ playerId: a.id, points: 4 }, { playerId: b.id, points: 10 }]);
+    repo.saveMatchdayPoints(9, [{ playerId: a.id, points: 6 }]);
+    repo.saveMatchdayPoints(10, [{ playerId: a.id, points: 1 }]);
+    expect(repo.pointsMatchdays()).toEqual([9, 10]);
+    expect(repo.getMatchdayPoints(9).sort((x, y) => x.points - y.points)).toEqual([{ playerId: a.id, points: 6 }, { playerId: b.id, points: 10 }]);
+  });
+});

@@ -6,6 +6,7 @@ import { FF_LINEUPS_HUB, parseHubLinks, parseHubResults, parseMatchPage, type Ff
 import { fetchOpenfootball } from "../providers/openfootball";
 import { fetchFootballData, footballDataEnabled } from "../providers/footballdata";
 import { calendarState } from "../analytics/fixtures";
+import { attributableMatchdayPoints } from "../analytics/ideal";
 import { getTeam } from "../domain/teams";
 import { normalizeName } from "../domain/normalize";
 import type { Player, PlayerStatus } from "../domain/types";
@@ -153,10 +154,16 @@ export async function syncPoints(repo: Store, force = false): Promise<SyncResult
     for (const r of pts.rows) {
       const p = byFf.get(r.ffId) ?? matchPlayer(ffPlayers, r.teamId, r.normName);
       if (!p) continue;
-      rows.push({ id: p.id, pointsTotal: r.pointsTotal, pointsAvg: r.pointsAvg, points5: r.points5, played5: r.played5, matchesPlayed: r.matchesPlayed, lastPoints: r.lastPoints });
+      rows.push({ id: p.id, teamId: p.teamId, pointsTotal: r.pointsTotal, pointsAvg: r.pointsAvg, points5: r.points5, played5: r.played5, matchesPlayed: r.matchesPlayed, lastPoints: r.lastPoints });
     }
     const n = await repo.updatePoints(rows);
-    return { count: n, message: `Puntos de ${n} jugadores (${pts.rows.length} filas en la fuente).` };
+    // Puntos de la jornada (once ideal): solo de los equipos que ya la han jugado.
+    const md = attributableMatchdayPoints(rows, await repo.getFixtures());
+    if (md && md.rows.length) await repo.saveMatchdayPoints(md.matchday, md.rows);
+    return {
+      count: n,
+      message: `Puntos de ${n} jugadores (${pts.rows.length} filas en la fuente).${md?.rows.length ? ` Jornada ${md.matchday}: ${md.rows.length} jugadores${md.complete ? "" : " (en curso)"}.` : ""}`,
+    };
   });
 }
 

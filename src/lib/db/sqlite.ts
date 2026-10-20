@@ -6,7 +6,7 @@ import type { Workspace } from "../domain/types";
 // Una base de datos SQLite por espacio de trabajo: "real" y "demo" nunca se mezclan.
 // SQLite está integrado en Node >= 22.13 (node:sqlite), sin dependencias nativas.
 
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 3;
 
 const MIGRATIONS: string[] = [
   `
@@ -148,6 +148,16 @@ const MIGRATIONS: string[] = [
   ALTER TABLE players ADD COLUMN yellow_cards INTEGER;
   ALTER TABLE players ADD COLUMN red_cards INTEGER;
   ALTER TABLE players ADD COLUMN warned INTEGER;
+  `,
+  // v3: puntos de cada jugador por jornada (para el once ideal)
+  `
+  CREATE TABLE IF NOT EXISTS matchday_points (
+    matchday INTEGER NOT NULL,
+    player_id TEXT NOT NULL,
+    points INTEGER NOT NULL,
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY (matchday, player_id)
+  );
   `,
 ];
 
