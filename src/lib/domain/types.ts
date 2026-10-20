@@ -57,6 +57,10 @@ export interface Player {
   played5: number | null;
   matchesPlayed: number | null;
   lastPoints: number | null;
+  /** Tarjetas en la temporada y si está a una amarilla de sanción (FútbolFantasy) */
+  yellowCards: number | null;
+  redCards: number | null;
+  warned: boolean | null;
   source: DataSource;
   sourceId: string | null;
   updatedAt: string;

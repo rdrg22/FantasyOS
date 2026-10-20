@@ -54,3 +54,23 @@ describe.runIf(Boolean(dir))("parsers contra páginas reales", () => {
     expect(r.unknownTeams).toEqual([]);
   });
 });
+
+describe.runIf(Boolean(dir))("tarjetas y resultados contra páginas reales", () => {
+  it("tarjetas y apercibidos por jugador", async () => {
+    const { parseMatchPage } = await import("@/lib/providers/futbolfantasy/lineups");
+    const r = parseMatchPage(read("ff_match.html"), "Getafe", "Rayo");
+    const all = [...r.home, ...r.away];
+    expect(all.filter((p) => p.yellow != null).length).toBeGreaterThan(30);
+    expect(all.some((p) => p.warned)).toBe(true);
+    expect(r.home.find((p) => p.slug === "nemanja-gudelj")?.yellow).toBe(2);
+    console.log("apercibidos", all.filter((p) => p.warned).map((p) => `${p.displayName}:${p.yellow}`));
+  });
+  it("resultados de la página central", async () => {
+    const { parseHubResults } = await import("@/lib/providers/futbolfantasy/lineups");
+    const { getTeam } = await import("@/lib/domain/teams");
+    const res = parseHubResults(read("ff_al.html"), (id) => Boolean(getTeam(id)));
+    console.log("resultados", res.map((x) => `${x.homeId} ${x.homeScore}-${x.awayScore} ${x.awayId}`));
+    expect(res.find((x) => x.homeId === "deportivo" && x.awayId === "levante")).toMatchObject({ homeScore: 1, awayScore: 1 });
+    expect(res.length).toBeGreaterThanOrEqual(8);
+  });
+});

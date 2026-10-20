@@ -53,6 +53,9 @@ function rowToPlayer(r: Row, ov?: PlayerOverride): Player {
     played5: num(r.played5),
     matchesPlayed: num(r.matches_played),
     lastPoints: num(r.last_points),
+    yellowCards: num(r.yellow_cards),
+    redCards: num(r.red_cards),
+    warned: r.warned == null ? null : Boolean(r.warned),
     source: r.source as DataSource,
     sourceId: (r.source_id as string) ?? null,
     updatedAt: String(r.updated_at),
@@ -137,6 +140,16 @@ export class SqliteRepo {
         const res = stmt.run(r.pointsTotal, r.pointsAvg, r.points5, r.played5, r.matchesPlayed, r.lastPoints, r.id);
         n += Number(res.changes);
       }
+      return n;
+    });
+  }
+
+  /** Tarjetas de la temporada y apercibidos (no toca el resto de datos). */
+  updateDiscipline(rows: { id: string; yellow: number | null; red: number | null; warned: boolean }[]): number {
+    const stmt = this.db.prepare("UPDATE players SET yellow_cards=COALESCE(?, yellow_cards), red_cards=COALESCE(?, red_cards), warned=? WHERE id=?");
+    return tx(this.db, () => {
+      let n = 0;
+      for (const r of rows) n += Number(stmt.run(r.yellow, r.red, r.warned ? 1 : 0, r.id).changes);
       return n;
     });
   }
@@ -486,7 +499,7 @@ export class SqliteRepo {
       INSERT INTO fixtures (id, season, matchday, kickoff, date, home_id, away_id, home_score, away_score, source, updated_at)
       VALUES (?,?,?,?,?,?,?,?,?,?,?)
       ON CONFLICT(id) DO UPDATE SET matchday=excluded.matchday, kickoff=COALESCE(excluded.kickoff, fixtures.kickoff),
-        date=excluded.date, home_score=excluded.home_score, away_score=excluded.away_score, source=excluded.source,
+        date=excluded.date, home_score=COALESCE(excluded.home_score, fixtures.home_score), away_score=COALESCE(excluded.away_score, fixtures.away_score), source=excluded.source,
         updated_at=excluded.updated_at`);
     return tx(this.db, () => {
       for (const f of fx) stmt.run(f.id, f.season, f.matchday, f.kickoff, f.date, f.homeId, f.awayId, f.homeScore, f.awayScore, f.source, f.updatedAt);

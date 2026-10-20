@@ -1,5 +1,6 @@
+import Link from "next/link";
 import { getRepo } from "@/lib/services/context";
-import { buildState, tableView } from "@/lib/services/state";
+import { buildState } from "@/lib/services/state";
 import { getTeam } from "@/lib/domain/teams";
 import { fmtDate, fmtDateTime } from "@/lib/domain/time";
 import { Empty, PageHeader, PosBadge, ProbBar, Section, StatusBadge, TeamChip } from "@/components/ui";
@@ -20,7 +21,6 @@ export default async function JornadaPage() {
     entries: (byTeam.get(teamId) ?? []).map((e) => ({ ...e, mine: e.playerId ? mine.has(e.playerId) : false })),
     players: [...s.analyses.values()].filter((a) => a.player.teamId === teamId && a.player.position !== "ENT").map((a) => ({ id: a.player.id, name: a.player.name, position: a.player.position })),
   });
-  const table = tableView(s.calendar.table);
   const myPlayers = s.squad.map((r) => r.analysis).sort((a, b) => a.pPlay - b.pPlay);
 
   return (
@@ -95,24 +95,7 @@ export default async function JornadaPage() {
               </Section>
             )}
 
-            <Section eyebrow={`Calculada con ${table.reduce((a, t) => a + t.played, 0) / 2} resultados`} title="Clasificación" info="Calculada con los resultados disponibles en la fuente del calendario; puede ir con retraso respecto a la oficial. Se usa para estimar la dificultad del rival.">
-              <table className="table-compact w-full">
-                <thead>
-                  <tr><th>#</th><th>Equipo</th><th className="!text-right">PJ</th><th className="!text-right">DG</th><th className="!text-right">Pts</th></tr>
-                </thead>
-                <tbody>
-                  {table.map((t) => (
-                    <tr key={t.teamId}>
-                      <td className="num text-muted">{t.rank}</td>
-                      <td><TeamChip teamId={t.teamId} /></td>
-                      <td className="num text-right text-muted">{t.played}</td>
-                      <td className="num text-right text-muted">{t.gf - t.ga > 0 ? "+" : ""}{t.gf - t.ga}</td>
-                      <td className="num text-right font-semibold">{t.points}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </Section>
+            <Link href="/liga" className="btn-ghost w-full">Resultados, clasificación y tarjetas →</Link>
           </div>
         </div>
       )}

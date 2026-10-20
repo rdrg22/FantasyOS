@@ -2,7 +2,7 @@ import type { PlayerInput, Store } from "../db/common";
 import { today } from "../db/common";
 import { fetchText, ProviderError, sleep } from "../providers/http";
 import { FF_MARKET_URL, FF_POINTS_URL, parseFfMarket, parseFfPoints } from "../providers/futbolfantasy/market";
-import { FF_LINEUPS_HUB, parseHubLinks, parseMatchPage, type FfLineupPlayer } from "../providers/futbolfantasy/lineups";
+import { FF_LINEUPS_HUB, parseHubLinks, parseHubResults, parseMatchPage, type FfLineupPlayer } from "../providers/futbolfantasy/lineups";
 import { fetchOpenfootball } from "../providers/openfootball";
 import { fetchFootballData, footballDataEnabled } from "../providers/footballdata";
 import { calendarState } from "../analytics/fixtures";
@@ -15,8 +15,8 @@ import { madridToIso } from "../domain/time";
  * Sincronización por pasos cortos. Cada paso cabe en el límite de tiempo de una
  * función serverless (~10 s); las alineaciones se procesan por tandas de partidos.
  */
-export type SyncKind = "fixtures" | "market" | "points" | "lineups";
-export const SYNC_STEPS: SyncKind[] = ["fixtures", "market", "points", "lineups"];
+export type SyncKind = "fixtures" | "results" | "market" | "points" | "lineups";
+export const SYNC_STEPS: SyncKind[] = ["fixtures", "results", "market", "points", "lineups"];
 
 export interface SyncResult {
   kind: SyncKind;
@@ -28,7 +28,7 @@ export interface SyncResult {
   failed?: string[];
 }
 
-const SOURCE: Record<SyncKind, string> = { market: "futbolfantasy", points: "futbolfantasy", fixtures: "calendario", lineups: "futbolfantasy" };
+const SOURCE: Record<SyncKind, string> = { market: "futbolfantasy", points: "futbolfantasy", fixtures: "calendario", results: "futbolfantasy", lineups: "futbolfantasy" };
 
 export function ffEnabled() {
   return (process.env.FOS_ENABLE_FUTBOLFANTASY ?? "true").toLowerCase() !== "false";
@@ -242,13 +242,16 @@ export async function syncLineups(repo: Store, opts: { force?: boolean; budgetMs
         const res = parseMatchPage(html, getTeam(f.homeId)!.name, getTeam(f.awayId)!.name);
         for (const [teamId, list] of [[f.homeId, res.home], [f.awayId, res.away]] as const) {
           const availability: { id: string; status: PlayerStatus; startProb: number | null; note: string | null }[] = [];
+          const discipline: { id: string; yellow: number | null; red: number | null; warned: boolean }[] = [];
           const entries = list.map((p) => {
             const match = matchPlayer(catalog, teamId, p.normName, p.displayName);
             if (match) availability.push({ id: match.id, status: roleToStatus(p), startProb: p.probability, note: p.note });
+            if (match && (p.yellow != null || p.red != null || p.warned)) discipline.push({ id: match.id, yellow: p.yellow, red: p.red, warned: p.warned });
             return { playerName: match?.name ?? p.displayName, playerId: match?.id ?? null, role: p.role, probability: p.probability, source: "futbolfantasy" as const, updatedAt: now };
           });
           await repo.replaceImportedLineup(md.matchday, teamId, entries);
           await repo.updateAvailability(availability);
+          await repo.updateDiscipline(discipline);
           players += entries.length;
         }
         done++;
@@ -268,9 +271,37 @@ export async function syncLineups(repo: Store, opts: { force?: boolean; budgetMs
   }
 }
 
+// ───────────────────────── Resultados (FútbolFantasy) ─────────────────────────
+
+/** Marcadores recientes desde la página central de FútbolFantasy (más al día que el calendario abierto). */
+export async function syncResults(repo: Store, force = false): Promise<SyncResult> {
+  if (!ffEnabled()) return { kind: "results", status: "skipped", message: "Integración con FútbolFantasy desactivada.", count: 0 };
+  return run(repo, "results", force, async () => {
+    const results = parseHubResults(await fetchText(FF_LINEUPS_HUB), (id) => Boolean(getTeam(id)));
+    const season = currentSeason();
+    const todayStr = today();
+    const fixtures = (await repo.getFixtures()).filter((f) => f.season === season && f.date <= todayStr);
+    const changed = [];
+    for (const r of results) {
+      const f = fixtures.find((x) => x.homeId === r.homeId && x.awayId === r.awayId);
+      if (!f || (f.homeScore === r.homeScore && f.awayScore === r.awayScore)) continue;
+      changed.push({ ...f, homeScore: r.homeScore, awayScore: r.awayScore, source: "futbolfantasy" as const, updatedAt: new Date().toISOString() });
+    }
+    if (changed.length) await repo.upsertFixtures(changed);
+    return { count: changed.length, message: `${results.length} marcadores leídos, ${changed.length} resultados nuevos o corregidos.` };
+  });
+}
+
 /** Ejecuta todos los pasos (para CLI o procesos sin límite de tiempo). */
 export async function syncAll(repo: Store, force = false): Promise<SyncResult[]> {
-  const out: SyncResult[] = [await syncFixtures(repo, force), await syncMarket(repo, force), await syncPoints(repo, force)];
+  const out: SyncResult[] = [await syncFixtures(repo, force), await syncResults(repo, force), await syncMarket(repo, force), await syncPoints(repo, force)];
+  out.push(...(await syncLineupsAll(repo, force)));
+  return out;
+}
+
+/** Todas las tandas de alineaciones seguidas (sin límite de tiempo: CLI o local). */
+export async function syncLineupsAll(repo: Store, force = false): Promise<SyncResult[]> {
+  const out: SyncResult[] = [];
   const exclude: string[] = [];
   for (let i = 0; i < 20; i++) {
     const r = await syncLineups(repo, { force: force && i === 0, budgetMs: 60_000, exclude });
@@ -284,6 +315,7 @@ export async function syncAll(repo: Store, force = false): Promise<SyncResult[]>
 export async function syncStep(repo: Store, kind: SyncKind, opts: { force?: boolean; exclude?: string[] } = {}): Promise<SyncResult> {
   switch (kind) {
     case "fixtures": return syncFixtures(repo, opts.force);
+    case "results": return syncResults(repo, opts.force);
     case "market": return syncMarket(repo, opts.force);
     case "points": return syncPoints(repo, opts.force);
     case "lineups": return syncLineups(repo, { force: opts.force, exclude: opts.exclude });

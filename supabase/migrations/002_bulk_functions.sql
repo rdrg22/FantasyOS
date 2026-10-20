@@ -71,7 +71,7 @@ begin
     from jsonb_to_recordset(p_rows) as x(id text, season text, matchday integer, kickoff timestamptz, date date, home_id text,
          away_id text, home_score integer, away_score integer, source text, updated_at timestamptz)
   on conflict (id) do update set matchday = excluded.matchday, kickoff = coalesce(excluded.kickoff, f.kickoff),
-    date = excluded.date, home_score = excluded.home_score, away_score = excluded.away_score,
+    date = excluded.date, home_score = coalesce(excluded.home_score, f.home_score), away_score = coalesce(excluded.away_score, f.away_score),
     source = excluded.source, updated_at = excluded.updated_at;
   get diagnostics n = row_count;
   return n;

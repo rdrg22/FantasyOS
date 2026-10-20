@@ -18,6 +18,10 @@ export interface FfLineupPlayer {
   role: LineupRole;
   probability: number | null;
   note: string | null;
+  /** Tarjetas en la temporada y si está apercibido (a una amarilla de sanción) */
+  yellow: number | null;
+  red: number | null;
+  warned: boolean;
 }
 
 export interface FfMatchLineups {
@@ -51,6 +55,9 @@ function wrappers(section: string): FfLineupPlayer[] {
     const prob = p.match(/data-probabilidad="(\d{1,3})%"/);
     const lesion = p.match(/data-lesion="(-?\d+)"/);
     const shortName = p.match(/class="truncate-name[^"]*">([^<]+)</);
+    const yellow = p.match(/data-totalAmarillas="(\d+)"/i);
+    const red = p.match(/data-totalRojas="(\d+)"/i);
+    const warned = /data-apercibido="1"/.test(p);
     const injured = lesion && lesion[1] !== "-1";
     let role: LineupRole = once?.[1].toLowerCase() === "titular" ? "titular" : "suplente";
     const probability = prob ? Number(prob[1]) / 100 : null;
@@ -63,6 +70,9 @@ function wrappers(section: string): FfLineupPlayer[] {
       role,
       probability: injured ? 0 : probability,
       note: injured ? "Marcado como lesionado" : null,
+      yellow: yellow ? Number(yellow[1]) : null,
+      red: red ? Number(red[1]) : null,
+      warned,
     });
   }
   return out;
@@ -81,6 +91,9 @@ function statusCards(section: string, role: LineupRole): FfLineupPlayer[] {
       role,
       probability: 0,
       note: note ? decodeEntities(note[1]).trim() : null,
+      yellow: null,
+      red: null,
+      warned: false,
     });
   }
   return out;
@@ -117,7 +130,7 @@ export function parseMatchPage(html: string, homeName: string, awayName: string)
     for (const l of lists) for (const p of l) {
       const prev = m.get(p.slug);
       // los bloques de lesionados/sancionados prevalecen sobre el campo
-      if (!prev || p.role === "lesionado" || p.role === "sancionado") m.set(p.slug, prev && (p.role === "lesionado" || p.role === "sancionado") ? { ...prev, ...p, displayName: prev.displayName } : p);
+      if (!prev || p.role === "lesionado" || p.role === "sancionado") m.set(p.slug, prev && (p.role === "lesionado" || p.role === "sancionado") ? { ...prev, ...p, displayName: prev.displayName, yellow: prev.yellow, red: prev.red, warned: prev.warned } : p);
     }
     return [...m.values()];
   };
@@ -133,4 +146,34 @@ export function parseMatchPage(html: string, homeName: string, awayName: string)
 export function parseMatchTitle(html: string): { home: string; away: string } | null {
   const m = html.match(/<title>([^<]+?)\s+-\s+([^<.]+?)\.\s*Previa/);
   return m ? { home: decodeEntities(m[1]).trim(), away: decodeEntities(m[2]).trim() } : null;
+}
+
+export interface HubResult {
+  homeId: string;
+  awayId: string;
+  homeScore: number;
+  awayScore: number;
+}
+
+/**
+ * Marcadores de la página central de alineaciones (jornada en curso y la anterior).
+ * El enlace es /partidos/<id>-<local>-<visitante> con los ids de equipo de Fantasy OS
+ * (que pueden llevar guion, p. ej. real-madrid), así que se prueba cada punto de corte.
+ */
+export function parseHubResults(html: string, isTeam: (id: string) => boolean): HubResult[] {
+  const out = new Map<string, HubResult>();
+  for (const m of html.matchAll(/<a href="https:\/\/www\.futbolfantasy\.com\/partidos\/\d+-([a-z0-9-]+)" class="partido[^"]*"[^>]*>([\s\S]*?)<\/a>/g)) {
+    const score = m[2].match(/score-local">\s*(\d+)\s*<\/div>\s*<div class="score-visitante">\s*(\d+)\s*</);
+    if (!score) continue;
+    const parts = m[1].split("-");
+    for (let i = 1; i < parts.length; i++) {
+      const homeId = parts.slice(0, i).join("-");
+      const awayId = parts.slice(i).join("-");
+      if (isTeam(homeId) && isTeam(awayId)) {
+        out.set(`${homeId}-${awayId}`, { homeId, awayId, homeScore: Number(score[1]), awayScore: Number(score[2]) });
+        break;
+      }
+    }
+  }
+  return [...out.values()];
 }

@@ -66,6 +66,9 @@ function rowToPlayer(r: Row, ov?: PlayerOverride): Player {
     played5: num(r.played5),
     matchesPlayed: num(r.matches_played),
     lastPoints: num(r.last_points),
+    yellowCards: num(r.yellow_cards),
+    redCards: num(r.red_cards),
+    warned: r.warned == null ? null : Boolean(r.warned),
     source: r.source as DataSource,
     sourceId: (r.source_id as string) ?? null,
     updatedAt: iso(r.updated_at) ?? nowIso(),
@@ -196,6 +199,11 @@ export class SupabaseStore implements Store {
     let n = 0;
     for (const c of chunks(payload, 500)) n += await this.rpc<number>("fos_update_points", { p_rows: c });
     return n;
+  }
+
+  async updateDiscipline(rows: { id: string; yellow: number | null; red: number | null; warned: boolean }[]): Promise<number> {
+    if (!rows.length) return 0;
+    return this.rpc<number>("fos_update_discipline", { p_rows: rows.map((r) => ({ id: r.id, yellow: r.yellow, red: r.red, warned: r.warned })) });
   }
 
   async updateAvailability(rows: { id: string; status: PlayerStatus; startProb: number | null; note: string | null }[]): Promise<number> {

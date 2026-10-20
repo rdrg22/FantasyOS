@@ -177,6 +177,9 @@ export interface PlayerView {
   points5: number | null;
   played5: number | null;
   lastPoints: number | null;
+  yellowCards: number | null;
+  redCards: number | null;
+  warned: boolean | null;
   xp: number;
   xp2: number;
   gain2: number;
@@ -225,6 +228,9 @@ export function toView(a: PlayerAnalysis, gain2?: number): PlayerView {
     points5: p.points5,
     played5: p.played5,
     lastPoints: p.lastPoints,
+    yellowCards: p.yellowCards,
+    redCards: p.redCards,
+    warned: p.warned,
     xp: Math.round(a.xp * 10) / 10,
     xp2: Math.round(a.xp2 * 10) / 10,
     gain2: Math.round((gain2 ?? 0) * 10) / 10,

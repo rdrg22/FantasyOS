@@ -78,6 +78,7 @@ export function PlayerDetail({ p, onClose, owned, listing, today, budget, bidCon
           <Row k="Últimas 5 jornadas" v={<span className="num">{p.points5 ?? "—"} pts en {p.played5 ?? "—"} partidos</span>} />
           <Row k="Prob. de jugar" v={<ProbBar p={p.pPlaySource === "supuesto" ? null : p.pPlay} source={p.pPlaySource} />} />
           <Row k="Origen de la prob." v={<span className="text-muted">{{ "alineacion-probable": "alineación probable", fuente: "FútbolFantasy (mercado)", historial: "partidos recientes", estado: "estado físico", supuesto: "sin dato (se supone 50%)" }[p.pPlaySource]}</span>} />
+          <Row k="Tarjetas" v={<span className="num">🟨 {p.yellowCards ?? "—"} · 🟥 {p.redCards ?? "—"}{p.warned && <span className="ml-2 rounded bg-gold/12 px-1.5 text-[11px] text-gold">Apercibido</span>}</span>} />
           <Row k="Próximos rivales" v={p.upcoming.length ? <NextFixtures upcoming={p.upcoming} /> : <span className="text-dim">—</span>} />
           {p.lineupRole && <Row k="Alineación probable" v={<span className="capitalize">{p.lineupRole}</span>} />}
         </div>

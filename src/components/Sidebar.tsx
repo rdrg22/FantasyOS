@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { Activity, CalendarDays, Database, LayoutDashboard, HelpCircle, LogOut, Menu, ShoppingCart, Sparkles, Users, X, Shirt } from "lucide-react";
+import { Activity, CalendarDays, Database, LayoutDashboard, HelpCircle, LogOut, Menu, ShoppingCart, Sparkles, Trophy, Users, X, Shirt } from "lucide-react";
 import { timeAgo } from "@/lib/domain/time";
 import { WorkspaceSwitch } from "./WorkspaceSwitch";
 
@@ -14,6 +14,7 @@ const NAV = [
   { href: "/mercado", label: "Mercado", icon: ShoppingCart, hint: "Precios y oportunidades" },
   { href: "/alineacion", label: "Once ideal", icon: Shirt, hint: "Recomendador de alineación" },
   { href: "/jornada", label: "Jornada", icon: CalendarDays, hint: "Partidos y alineaciones probables" },
+  { href: "/liga", label: "Liga", icon: Trophy, hint: "Resultados, clasificación y tarjetas" },
   { href: "/datos", label: "Datos y fuentes", icon: Database, hint: "Sincronización y ajustes" },
   { href: "/ayuda", label: "Ayuda", icon: HelpCircle, hint: "Glosario, metodología y fuentes" },
 ];

@@ -3,7 +3,7 @@
 import type { Player, Settings } from "../domain/types";
 import type { SqliteRepo } from "./repo";
 
-export type PlayerInput = Omit<Player, "overridden" | "normName"> & { normName?: string };
+export type PlayerInput = Omit<Player, "overridden" | "normName" | "yellowCards" | "redCards" | "warned"> & { normName?: string };
 
 export const DEFAULT_SETTINGS: Settings = {
   budget: 0,

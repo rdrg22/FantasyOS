@@ -110,3 +110,22 @@ describe("acciones (API)", () => {
     await expect(runAction(asStore(repo), "demo", ActionSchema.parse({ type: "sync", kind: "market" }))).rejects.toThrow(/demostración/);
   });
 });
+
+describe("tarjetas y resultados", () => {
+  it("guarda tarjetas y apercibidos sin tocar el resto", () => {
+    const p = mk("Duro Defensa", "DEF", 2_000_000);
+    repo.updateDiscipline([{ id: p.id, yellow: 4, red: 1, warned: true }]);
+    const after = repo.getPlayer(p.id)!;
+    expect([after.yellowCards, after.redCards, after.warned, after.value]).toEqual([4, 1, true, 2_000_000]);
+    repo.updateDiscipline([{ id: p.id, yellow: null, red: null, warned: false }]);
+    expect(repo.getPlayer(p.id)!.yellowCards).toBe(4); // null no borra
+    expect(repo.getPlayer(p.id)!.warned).toBe(false);
+  });
+
+  it("un resultado conocido no se borra si otra fuente aún no lo tiene", () => {
+    const f = { id: "s:9:getafe-rayo", season: "s", matchday: 9, kickoff: null, date: "2026-10-19", homeId: "getafe", awayId: "rayo", source: "futbolfantasy" as const, updatedAt: "" };
+    repo.upsertFixtures([{ ...f, homeScore: 2, awayScore: 1 }]);
+    repo.upsertFixtures([{ ...f, homeScore: null, awayScore: null, source: "openfootball" }]);
+    expect(repo.getFixtures()[0]).toMatchObject({ homeScore: 2, awayScore: 1 });
+  });
+});

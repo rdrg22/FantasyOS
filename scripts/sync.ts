@@ -5,7 +5,7 @@
  *   npm run sync -- all --force
  * Usa Supabase si están definidas sus variables (.env.local); si no, la base de datos SQLite local.
  */
-import { syncAll, syncStep, SYNC_STEPS, type SyncKind } from "../src/lib/services/sync";
+import { syncAll, syncLineupsAll, syncStep, SYNC_STEPS, type SyncKind } from "../src/lib/services/sync";
 import { buildState } from "../src/lib/services/state";
 import type { Store } from "../src/lib/db/common";
 import { supabaseEnabled } from "../src/lib/supabase/config";
@@ -30,7 +30,10 @@ async function main() {
     console.error(`Paso desconocido: ${kind}. Usa all | ${SYNC_STEPS.join(" | ")}`);
     process.exit(2);
   }
-  const results = kind === "all" ? await syncAll(shared, force) : [await syncStep(shared, kind as SyncKind, { force })];
+  const results =
+    kind === "all" ? await syncAll(shared, force)
+    : kind === "lineups" ? await syncLineupsAll(shared, force)
+    : [await syncStep(shared, kind as SyncKind, { force })];
   for (const r of results) console.log(`[${r.status.toUpperCase()}] ${r.kind}: ${r.message}`);
   // Registra el valor diario de la plantilla de cada usuario
   for (const u of await shared.listUserIds()) await buildState(await open(u), "real");

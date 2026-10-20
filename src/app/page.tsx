@@ -31,6 +31,7 @@ export default async function Dashboard() {
       if (a.player.status === "lesionado" || a.player.status === "sancionado") tags.push({ text: STATUS_LABEL[a.player.status], tone: "down" });
       else if (a.player.status === "duda") tags.push({ text: "Duda", tone: "gold" });
       else if (a.pPlaySource !== "supuesto" && a.pPlay < 0.5) tags.push({ text: `${Math.round(a.pPlay * 100)}% juega`, tone: "gold" });
+      if (a.player.warned && a.player.status !== "sancionado") tags.push({ text: "Apercibido", tone: "gold" });
       const drop = a.trend.pct3 ?? a.trend.pct1;
       if (a.trend.direction === "baja" || (a.trend.pct1 ?? 0) < -1) tags.push({ text: `${fmtPct(drop)} valor`, tone: "down" });
       return { r, tags, severity: tags.filter((t) => t.tone === "down").length * 2 + tags.length + (r.inLineup ? 1 : 0) };

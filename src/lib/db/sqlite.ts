@@ -6,7 +6,7 @@ import type { Workspace } from "../domain/types";
 // Una base de datos SQLite por espacio de trabajo: "real" y "demo" nunca se mezclan.
 // SQLite está integrado en Node >= 22.13 (node:sqlite), sin dependencias nativas.
 
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 2;
 
 const MIGRATIONS: string[] = [
   `
@@ -142,6 +142,12 @@ const MIGRATIONS: string[] = [
     message TEXT,
     count INTEGER
   );
+  `,
+  // v2: disciplina (tarjetas y apercibidos)
+  `
+  ALTER TABLE players ADD COLUMN yellow_cards INTEGER;
+  ALTER TABLE players ADD COLUMN red_cards INTEGER;
+  ALTER TABLE players ADD COLUMN warned INTEGER;
   `,
 ];
 

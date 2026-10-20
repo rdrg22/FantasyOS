@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import { RefreshCw } from "lucide-react";
 import { useToast } from "./Toast";
 
-type Step = "fixtures" | "market" | "points" | "lineups";
-const LABEL: Record<Step, string> = { fixtures: "calendario", market: "mercado", points: "puntos", lineups: "alineaciones" };
+type Step = "fixtures" | "results" | "market" | "points" | "lineups";
+const LABEL: Record<Step, string> = { fixtures: "calendario", results: "resultados", market: "mercado", points: "puntos", lineups: "alineaciones y tarjetas" };
 
 interface StepResult {
   kind: Step;
@@ -24,7 +24,7 @@ export function SyncButton({ kind, label, force = false, ghost = false }: { kind
   const [progress, setProgress] = useState<string | null>(null);
   const router = useRouter();
   const toast = useToast();
-  const steps: Step[] = kind === "all" ? ["fixtures", "market", "points", "lineups"] : Array.isArray(kind) ? kind : [kind];
+  const steps: Step[] = kind === "all" ? ["fixtures", "results", "market", "points", "lineups"] : Array.isArray(kind) ? kind : [kind];
 
   async function call(step: Step, exclude: string[], forceThis: boolean): Promise<StepResult | null> {
     const res = await fetch("/api/actions", {

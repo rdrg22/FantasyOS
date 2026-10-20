@@ -131,6 +131,13 @@ export async function seedDemo(repo: Store, now = new Date()): Promise<{ players
   // Las escrituras independientes van en paralelo para que quepa en una función serverless.
   await Promise.all([repo.upsertFixtures(fixtures), repo.upsertPlayers(players)]);
   await Promise.all([...byDate].map(([date, list]) => repo.recordSnapshots(list, date, "demo")));
+  // Tarjetas ficticias (algunos apercibidos con 4 amarillas)
+  await repo.updateDiscipline(
+    players.map((p) => {
+      const yellow = Math.floor(r() * r() * 7);
+      return { id: p.id, yellow, red: r() < 0.06 ? 1 : 0, warned: yellow === 4 };
+    }),
+  );
   const all = await repo.getPlayers();
 
   // ── Alineaciones probables de la jornada 10 (demo) ──

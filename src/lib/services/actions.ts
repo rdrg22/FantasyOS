@@ -43,7 +43,7 @@ export const ActionSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("upsertLineupEntry"), id: z.number().int().optional(), matchday: z.number().int().min(1).max(38), teamId, playerName: z.string().trim().min(2).max(60), playerId: z.string().nullable().optional(), role: z.enum(["titular", "suplente", "duda", "lesionado", "sancionado"]), probability: prob.optional() }),
   z.object({ type: z.literal("deleteLineupEntry"), id: z.number().int() }),
   z.object({ type: z.literal("resetDemo") }),
-  z.object({ type: z.literal("sync"), kind: z.enum(["fixtures", "market", "points", "lineups"]), force: z.boolean().default(false), exclude: z.array(z.string().max(80)).max(20).default([]) }),
+  z.object({ type: z.literal("sync"), kind: z.enum(["fixtures", "results", "market", "points", "lineups"]), force: z.boolean().default(false), exclude: z.array(z.string().max(80)).max(20).default([]) }),
 ]);
 
 export type Action = z.infer<typeof ActionSchema>;
