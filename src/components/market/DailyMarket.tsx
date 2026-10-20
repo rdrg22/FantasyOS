@@ -7,6 +7,7 @@ import type { MarketListing } from "@/lib/domain/types";
 import { fmtCompact, fmtMoney } from "@/lib/domain/money";
 import { fmtDate } from "@/lib/domain/time";
 import { Delta, InfoTip, PosBadge, ScoreRing, TeamChip } from "../ui";
+import { Jersey } from "../Jersey";
 import { Modal } from "../Modal";
 import { normalizeName } from "@/lib/domain/normalize";
 import { getTeam } from "@/lib/domain/teams";
@@ -74,8 +75,8 @@ export function DailyMarket({
             <div key={l.id} className="panel-inset group flex cursor-pointer items-center gap-3 px-3 py-2 hover:border-ink-500" onClick={() => onOpen(p.id)}>
               <ScoreRing score={p.opportunity} />
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-1.5"><PosBadge pos={p.position} /><span className="truncate text-sm font-medium">{p.name}</span></div>
-                <div className="mt-0.5 flex items-center gap-2"><TeamChip teamId={p.teamId} short /><NextFixtures upcoming={p.upcoming} size="xs" /></div>
+                <div className="flex items-center gap-1.5"><Jersey teamId={p.teamId} size={20} /><span className="truncate text-sm font-medium">{p.name}</span></div>
+                <div className="mt-0.5 flex items-center gap-2"><PosBadge pos={p.position} /><TeamChip teamId={p.teamId} short icon={false} /><NextFixtures upcoming={p.upcoming} size="xs" /></div>
               </div>
               <div className="text-right">
                 <div className="num text-sm font-semibold" title={fmtMoney(l.askingPrice ?? p.value)}>{fmtCompact(l.askingPrice ?? p.value)}</div>

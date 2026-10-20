@@ -5,6 +5,7 @@ import { Pencil, Trash2, UserPlus } from "lucide-react";
 import { fmtCompact, fmtMoney, fmtPct, fmtSigned } from "@/lib/domain/money";
 import { fmtDate } from "@/lib/domain/time";
 import { Delta, Empty, PosBadge, ProbBar, StatusBadge, TeamChip } from "../ui";
+import { Jersey } from "../Jersey";
 import { TradeButton } from "../TradeButton";
 import { EditPlayerModal } from "./EditPlayerModal";
 import { useAction } from "../useAction";
@@ -66,11 +67,12 @@ export function SquadTable({ rows, onAdd }: { rows: SquadRowView[]; onAdd: () =>
                 <td><PosBadge pos={r.player.position} /></td>
                 <td>
                   <div className="flex items-center gap-1.5 whitespace-nowrap font-medium">
+                    <Jersey teamId={r.player.teamId} size={20} />
                     {r.player.name}
                     {r.inLineup && <span className="rounded bg-cyan/15 px-1 text-[10px] text-cyan">XI</span>}
                     {r.player.overridden.length > 0 && <span className="rounded bg-violet/15 px-1 text-[10px] text-violet" title={`Editado a mano: ${r.player.overridden.join(", ")}`}>manual</span>}
                   </div>
-                  <div className="flex items-center gap-2"><TeamChip teamId={r.player.teamId} short /><NextFixtures upcoming={r.player.upcoming} size="xs" /></div>
+                  <div className="flex items-center gap-2"><TeamChip teamId={r.player.teamId} short icon={false} /><NextFixtures upcoming={r.player.upcoming} size="xs" /></div>
                 </td>
                 <td className="num whitespace-nowrap text-right text-muted" title={fmtMoney(r.purchasePrice)}>
                   {fmtCompact(r.purchasePrice)}

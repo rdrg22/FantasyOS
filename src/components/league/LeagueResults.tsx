@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { getTeam } from "@/lib/domain/teams";
+import { Jersey } from "../Jersey";
 import { fmtDate, fmtDateTime } from "@/lib/domain/time";
 
 export interface MatchdayResults {
@@ -43,7 +44,7 @@ export function LeagueResults({ matchdays, initial }: { matchdays: MatchdayResul
             <li key={m.id} className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 py-2.5 text-sm">
               <span className={`flex items-center justify-end gap-2 truncate text-right ${homeWin ? "font-semibold" : done ? "text-muted" : ""}`}>
                 <span className="truncate">{h?.name ?? m.homeId}</span>
-                <span className="h-4 w-1 shrink-0 rounded" style={{ background: h?.color }} />
+                <Jersey teamId={m.homeId} size={22} />
               </span>
               {done ? (
                 <span className="num min-w-14 rounded-md bg-ink-800 px-2 py-0.5 text-center font-display font-semibold">
@@ -53,7 +54,7 @@ export function LeagueResults({ matchdays, initial }: { matchdays: MatchdayResul
                 <span className="min-w-14 text-center text-[11.5px] text-muted">{m.kickoff ? fmtDateTime(m.kickoff) : fmtDate(m.date)}</span>
               )}
               <span className={`flex items-center gap-2 truncate ${awayWin ? "font-semibold" : done ? "text-muted" : ""}`}>
-                <span className="h-4 w-1 shrink-0 rounded" style={{ background: a?.color }} />
+                <Jersey teamId={m.awayId} size={22} />
                 <span className="truncate">{a?.name ?? m.awayId}</span>
               </span>
             </li>

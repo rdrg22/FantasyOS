@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { Position } from "@/lib/domain/types";
 import { InfoTip, PosBadge, TeamChip } from "../ui";
+import { Jersey } from "../Jersey";
 
 export interface CardRow {
   id: string;
@@ -71,13 +72,13 @@ export function CardsBoard({ rows }: { rows: CardRow[] }) {
           {list.slice(0, 25).map((r, i) => (
             <li key={r.id} className={`flex items-center gap-2 py-2 text-sm ${r.mine ? "bg-cyan/5" : ""}`}>
               <span className="num w-5 text-right text-[12px] text-dim">{i + 1}</span>
-              <PosBadge pos={r.position} />
+              <Jersey teamId={r.teamId} size={28} />
               <span className="min-w-0 flex-1">
                 <span className="flex items-center gap-1.5">
                   <span className="truncate">{r.name}</span>
                   {r.mine && <span className="rounded bg-cyan/15 px-1 text-[10px] text-cyan">TUYO</span>}
                 </span>
-                <TeamChip teamId={r.teamId} short />
+                <span className="flex items-center gap-1.5"><PosBadge pos={r.position} /><TeamChip teamId={r.teamId} short icon={false} /></span>
               </span>
               {tab === "apercibidos" ? (
                 <span className={`whitespace-nowrap rounded px-1.5 py-0.5 text-[11.5px] ${r.suspended ? "bg-down/12 text-down" : "bg-gold/12 text-gold"}`}>

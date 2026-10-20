@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { ArrowDownRight, ArrowUpRight, Minus, Info } from "lucide-react";
 import { getTeam } from "@/lib/domain/teams";
+import { Jersey } from "./Jersey";
 import { fmtCompact, fmtPct } from "@/lib/domain/money";
 import { timeAgo } from "@/lib/domain/time";
 import type { PlayerStatus, Position } from "@/lib/domain/types";
@@ -82,12 +83,12 @@ export function PosBadge({ pos }: { pos: Position }) {
   return <span className={`inline-flex w-9 justify-center rounded border px-1 py-px font-mono text-[10px] font-semibold ${POS_STYLE[pos]}`}>{pos}</span>;
 }
 
-export function TeamChip({ teamId, short = false }: { teamId: string | null; short?: boolean }) {
+export function TeamChip({ teamId, short = false, icon = true }: { teamId: string | null; short?: boolean; icon?: boolean }) {
   const t = getTeam(teamId);
   if (!t) return <span className="text-dim">—</span>;
   return (
     <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-[12.5px] text-muted">
-      <span className="h-2.5 w-2.5 shrink-0 rounded-[3px] ring-1 ring-white/10" style={{ background: t.color }} />
+      {icon && <Jersey teamId={t.id} size={16} />}
       {short ? t.short : t.name}
     </span>
   );

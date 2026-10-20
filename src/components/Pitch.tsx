@@ -2,6 +2,7 @@
 
 import { Plus, X } from "lucide-react";
 import { getTeam } from "@/lib/domain/teams";
+import { Jersey } from "./Jersey";
 import type { PlayerStatus, Position } from "@/lib/domain/types";
 
 export interface PitchPlayer {
@@ -139,13 +140,13 @@ function SlotCard({
       className={`group relative w-[60px] cursor-pointer select-none min-[400px]:w-[68px] sm:w-[104px] ${readOnly ? "cursor-default" : "active:scale-[0.98]"}`}
       title={p.alert ?? `${p.name} · ${p.xp.toFixed(1)} pts esperados · ${pct}% de jugar`}
     >
+      <Jersey teamId={p.teamId} size={40} className="relative z-10 mx-auto -mb-2 drop-shadow-[0_3px_4px_rgba(0,0,0,0.5)] sm:h-[52px] sm:w-[52px]" title={team?.name} />
       <div
         className={`overflow-hidden rounded-lg border bg-ink-900/90 shadow-lg backdrop-blur transition ${
           selected ? "border-cyan ring-2 ring-cyan/40" : highlight ? "border-up ring-2 ring-up/30" : bad ? "border-down/70" : "border-white/15 group-hover:border-cyan/60"
         }`}
       >
-        <div className="h-1" style={{ background: team?.color ?? "#2c4268" }} />
-        <div className="px-1.5 pb-1.5 pt-1">
+        <div className="px-1.5 pb-1.5 pt-2">
           <div className="truncate text-center text-[10.5px] font-semibold leading-tight sm:text-[12.5px]">{p.name}</div>
           <div className="mt-0.5 flex items-center justify-between font-mono text-[9.5px] text-white/60">
             <span>{team?.short ?? "—"}</span>
@@ -157,14 +158,14 @@ function SlotCard({
           {p.sub && <div className="mt-1 truncate text-center text-[9.5px] text-white/50">{p.sub}</div>}
         </div>
       </div>
-      {bad && <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full border-2 border-ink-900 bg-down" />}
+      {bad && <span className="absolute right-1 top-0 h-3 w-3 rounded-full border-2 border-ink-900 bg-down" />}
       {onClear && !readOnly && (
         <button
           onClick={(e) => {
             e.stopPropagation();
             onClear();
           }}
-          className="absolute -left-1.5 -top-1.5 hidden h-4 w-4 items-center justify-center rounded-full bg-ink-700 text-white/80 group-hover:flex"
+          className="absolute left-0 top-0 hidden h-4 w-4 items-center justify-center rounded-full bg-ink-700 text-white/80 group-hover:flex"
           aria-label="Quitar del once"
         >
           <X size={10} />

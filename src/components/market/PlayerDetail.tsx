@@ -9,6 +9,7 @@ import { timeAgo } from "@/lib/domain/time";
 import { Modal } from "../Modal";
 import { PriceChart } from "../charts";
 import { ConfidencePill, Delta, PosBadge, ProbBar, ScoreRing, StatusBadge, TeamChip } from "../ui";
+import { Jersey } from "../Jersey";
 import { TradeButton } from "../TradeButton";
 import { MoneyInput } from "../MoneyInput";
 import { useAction } from "../useAction";
@@ -46,9 +47,9 @@ export function PlayerDetail({ p, onClose, owned, listing, today, budget, bidCon
     p.trendBasis === "instantaneas" ? "precios guardados por la app (fechas reales)" : p.trendBasis === "fuente" ? "valores publicados por la fuente (N mercados atrás)" : p.trendBasis === "mixta" ? "precios propios + fuente" : "sin histórico";
 
   return (
-    <Modal open onClose={onClose} wide title={<span className="flex items-center gap-2"><PosBadge pos={p.position} /> {p.name}</span>}>
+    <Modal open onClose={onClose} wide title={<span className="flex items-center gap-2.5"><Jersey teamId={p.teamId} size={40} /><PosBadge pos={p.position} /> {p.name}</span>}>
       <div className="mb-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
-        <TeamChip teamId={p.teamId} />
+        <TeamChip teamId={p.teamId} icon={false} />
         <span className="text-muted">{POSITION_LABEL[p.position]}</span>
         <StatusBadge status={p.status} note={p.statusNote} />
         {p.statusNote && <span className="text-[12px] text-muted">{p.statusNote}</span>}

@@ -9,6 +9,7 @@ import { TEAMS, getTeam } from "@/lib/domain/teams";
 import { normalizeName } from "@/lib/domain/normalize";
 import { fmtCompact, fmtMoney, fmtSigned } from "@/lib/domain/money";
 import { Delta, Difficulty, Empty, PosBadge, ProbBar, ScoreRing, StatusBadge, TeamChip } from "../ui";
+import { Jersey } from "../Jersey";
 import { Sparkline } from "../Sparkline";
 import { PlayerDetail } from "./PlayerDetail";
 import { DailyMarket } from "./DailyMarket";
@@ -209,8 +210,8 @@ export function MarketView({
                 {filtered.slice(0, limit).map((p) => (
                   <tr key={p.id} className="cursor-pointer" onClick={() => setDetail(p)}>
                     <td>
-                      <div className="flex items-center gap-2">
-                        <PosBadge pos={p.position} />
+                      <div className="flex items-center gap-2.5">
+                        <Jersey teamId={p.teamId} size={30} />
                         <div className="min-w-0">
                           <div className="flex items-center gap-1.5 whitespace-nowrap font-medium">
                             {p.name}
@@ -222,7 +223,7 @@ export function MarketView({
                               </span>
                             )}
                           </div>
-                          <div className="mt-0.5 flex items-center gap-2"><TeamChip teamId={p.teamId} short /><NextFixtures upcoming={p.upcoming} size="xs" /></div>
+                          <div className="mt-0.5 flex items-center gap-2"><PosBadge pos={p.position} /><TeamChip teamId={p.teamId} short icon={false} /><NextFixtures upcoming={p.upcoming} size="xs" /></div>
                         </div>
                       </div>
                     </td>
