@@ -2,6 +2,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { supabasePublishableKey, supabaseSecretKey, supabaseUrl } from "./config";
+import { isAllowedUser } from "./access";
 
 const g = globalThis as unknown as { __fosAdmin?: SupabaseClient };
 
@@ -33,9 +34,10 @@ export async function authClient() {
   });
 }
 
-/** Id del usuario autenticado (validado contra Supabase Auth) o null. */
+/** Id del usuario autenticado (validado contra Supabase Auth) y con acceso permitido, o null. */
 export async function currentAuthUserId(): Promise<string | null> {
   const sb = await authClient();
   const { data } = await sb.auth.getUser();
-  return data.user?.id ?? null;
+  const id = data.user?.id ?? null;
+  return isAllowedUser(id) ? id : null;
 }

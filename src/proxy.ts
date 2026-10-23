@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { isAllowedUser } from "@/lib/supabase/access";
 
 /**
  * Con Supabase configurado: refresca la sesión (cookies) en cada petición y manda al
@@ -24,9 +25,18 @@ export async function proxy(request: NextRequest) {
   });
   const { data } = await supabase.auth.getUser();
   const path = request.nextUrl.pathname;
+  // Sesión válida pero de una cuenta sin acceso (FantasyOS es privado por ahora).
+  const denied = !!data.user && !isAllowedUser(data.user.id);
   const isPublic =
     path === "/login" || path.startsWith("/api/cron") || path.startsWith("/api/auth") ||
     path === "/manifest.webmanifest" || path === "/sw.js" || path.startsWith("/icon") || path.startsWith("/apple-icon");
+  if (denied && !isPublic) {
+    if (path.startsWith("/api/")) return NextResponse.json({ ok: false, error: "Esta cuenta no tiene acceso." }, { status: 403 });
+    const to = request.nextUrl.clone();
+    to.pathname = "/login";
+    to.search = "?acceso=denegado";
+    return NextResponse.redirect(to);
+  }
   if (!data.user && !isPublic) {
     if (path.startsWith("/api/")) return NextResponse.json({ ok: false, error: "Sesión caducada: vuelve a iniciar sesión." }, { status: 401 });
     const to = request.nextUrl.clone();
@@ -34,7 +44,7 @@ export async function proxy(request: NextRequest) {
     to.search = "";
     return NextResponse.redirect(to);
   }
-  if (data.user && path === "/login") {
+  if (data.user && !denied && path === "/login") {
     const to = request.nextUrl.clone();
     to.pathname = "/";
     return NextResponse.redirect(to);

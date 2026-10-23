@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { Activity, CalendarDays, Database, LayoutDashboard, HelpCircle, LogOut, Menu, ShoppingCart, Sparkles, Trophy, Users, X, Shirt } from "lucide-react";
+import { Activity, ArrowUpRight, CalendarDays, Database, LayoutDashboard, HelpCircle, LogOut, Menu, ShoppingCart, Sparkles, Ticket, Trophy, Users, X, Shirt } from "lucide-react";
+import { QUINIELA_URL } from "@/lib/links";
 import { timeAgo } from "@/lib/domain/time";
 import { WorkspaceSwitch } from "./WorkspaceSwitch";
 
@@ -80,6 +81,21 @@ export function Sidebar({ workspace, teamName, freshness, canLogout = false }: {
           );
         })}
       </ul>
+
+      <div className="eyebrow px-5 pb-2 pt-5">Otras herramientas</div>
+      <div className="px-3">
+        <a
+          href={QUINIELA_URL}
+          target="_blank"
+          rel="noopener"
+          title="Pronósticos, análisis y constructor de quinielas de LaLiga e Hypermotion"
+          className="group flex items-center gap-3 rounded-xl px-3 py-2 text-muted transition-colors hover:bg-ink-800 hover:text-fg"
+        >
+          <Ticket size={17} className="text-dim group-hover:text-muted" />
+          <span className="text-[13.5px] font-medium">Quiniela OS</span>
+          <ArrowUpRight size={13} className="ml-auto text-dim" />
+        </a>
+      </div>
 
       <div className="mt-auto space-y-3 p-4">
         <WorkspaceSwitch workspace={workspace} />
